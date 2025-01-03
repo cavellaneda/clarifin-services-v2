@@ -2,7 +2,7 @@
 FROM amazoncorretto:17-alpine
 
 # Copia el JAR construido al contenedor
-COPY build/libs/services-0.0.1-SNAPSHOT.jar app.jar
+COPY build/libs/services-0.0.2-SNAPSHOT.jar app.jar
 
 # Define el comando para ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "/app.jar"]
