@@ -1,8 +1,6 @@
 package com.clarifin.services.domain.mappers;
 
-import com.clarifin.services.adapters.out.persistence.entities.BusinessEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CuentaContableDimensionsEntity;
-import com.clarifin.services.domain.Business;
 import com.clarifin.services.domain.CuentaContableDimensions;
 import jakarta.validation.constraints.NotNull;
 import org.mapstruct.Mapper;

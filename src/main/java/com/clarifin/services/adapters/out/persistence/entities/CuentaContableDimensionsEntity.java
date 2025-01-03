@@ -27,7 +27,11 @@ public class CuentaContableDimensionsEntity {
   private Double credits;
   private Double finalBalance;
   private String idProcess;
+  private String idBusinessUnit;
   private Date dateProcess;
   private Long idClient;
-  private String idBusiness;
+  private String idCompany;
+  @Column(name = "metadata")
+  private String metadata;
+
 }

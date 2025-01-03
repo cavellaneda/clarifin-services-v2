@@ -5,9 +5,13 @@ import com.clarifin.services.adapters.out.persistence.entities.AccountingProcess
 import com.clarifin.services.adapters.out.persistence.entities.AccountingProcessValidationOn4Entity;
 import com.clarifin.services.adapters.out.persistence.entities.AccountingProcessValidationOn6Entity;
 import com.clarifin.services.adapters.out.persistence.entities.AccountingProcessValidationOn8Entity;
+import com.clarifin.services.adapters.out.persistence.entities.BalanceComparisonValidationEntity;
+import com.clarifin.services.adapters.out.persistence.entities.CuentaContableCategoriesEntity;
 import com.clarifin.services.adapters.out.persistence.entities.TransactionalConfirmationEntity;
 import com.clarifin.services.domain.UploadProperties;
 import com.clarifin.services.port.out.AccountingProcessPort;
+import com.google.gson.Gson;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -15,6 +19,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -25,6 +30,15 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
 
   @Autowired
   private TransactionalConfirmationRepository transactionalConfirmationRepository;
+
+  @Autowired
+  private BalanceComparisonValidationRepository balanceComparisonValidationRepository;
+
+  @Autowired
+  private CuentaContableCategoriesRepository cuentaContableCategoriesRepository;
+
+  @Autowired
+  private CuentaContableRepository cuentaContableRepository;
 
   @Autowired
   private AccountingProcessValidationOn2Repository accountingProcessValidationOn2Repository;
@@ -39,15 +53,16 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
   private AccountingProcessValidationOn8Repository accountingProcessValidationOn8Repository;
 
   @Override
-  public void saveProcess(String uuid, UploadProperties uploadProperties) {
+  public void saveProcess(String uuid, UploadProperties uploadProperties, List<String> idBusinessUnits, String status) {
     accountingProcessRepository.save(
         AccountingProcessEntity.builder()
             .id(uuid)
             .idClient(uploadProperties.getIdClient())
             .idFormat(uploadProperties.getIdFormat())
             .dateProcess(uploadProperties.getDateImport())
-            .status("CREATED")
-            .idBusiness(uploadProperties.getIdBusiness())
+            .status(status)
+            .idCompany(uploadProperties.getIdCompany())
+            .idBusinessUnit(new Gson().toJson(idBusinessUnits))
             .build()
     );
   }
@@ -152,17 +167,78 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
   @Override
   public Optional<AccountingProcessEntity> getProcessByIdClientAndDateProcessAndStateAndBusiness(Long idClient, Date dateImport,
       String status, String idBusiness) {
-    return accountingProcessRepository.findAccountingProcessEntityByIdClientAndDateProcessAndStatusAndIdBusiness(idClient, dateImport, status, idBusiness);
+    return accountingProcessRepository.findAccountingProcessEntityByIdClientAndDateProcessAndStatusAndIdCompany(idClient, dateImport, status, idBusiness);
   }
 
   @Override
-  public List<TransactionalConfirmationEntity> getTransactionalConfirmationByIdProcess(String idProcess) {
-    return transactionalConfirmationRepository.findTransactionalConfirmationEntitiesByIdProcess(idProcess);
+  public List<TransactionalConfirmationEntity> getTransactionalConfirmationByIdProcessAndIdBusinessUnit(String idProcess, String idBusinessUnit) {
+    return transactionalConfirmationRepository.findTransactionalConfirmationEntitiesByIdProcessAndIdBusinessUnit(idProcess, idBusinessUnit);
   }
 
   @Override
   public List<AccountingProcessEntity> getProcess(Long idClient, String idBusiness, Date startDate,
       Date endDate) {
-    return accountingProcessRepository.findAccountingProcessEntitiesByIdClientAndIdBusinessAndDateProcessIsBetweenAndStatusOrderByDateProcessAsc(idClient, idBusiness, startDate, endDate, "SUCCESS");
+    return accountingProcessRepository.findAccountingProcessEntitiesByIdClientAndIdCompanyAndDateProcessIsBetweenAndStatusOrderByDateProcessAsc(idClient, idBusiness, startDate, endDate, "SUCCESS");
+  }
+
+  @Override
+  public List<AccountingProcessEntity> getProcess(Long idClient, String idCompany) {
+    return accountingProcessRepository.findAccountingProcessEntitiesByIdClientAndIdCompanyOrderByDateProcessAsc(idClient, idCompany);
+  }
+
+  @Override
+  public List<AccountingProcessEntity> getProcess(Long idClient) {
+    return accountingProcessRepository.findAccountingProcessEntitiesByIdClientOrderByDateProcessAsc(idClient);
+  }
+
+
+  @Override
+  public List<String> getBalanceComparison(String idProcessPrevious, String idProcessCurrent) {
+    final List<String> errors = new ArrayList<>();
+
+    final String msgError = "Error en la validación de saldos: en el codigo PUC: %s, valores erroneos: valor Saldo final mes anterior %s, valor saldo inicial mes cargado %s";
+    List<BalanceComparisonValidationEntity> result = balanceComparisonValidationRepository.findBalanceComparison(idProcessPrevious, idProcessCurrent);
+
+    result.forEach(balanceComparisonValidationEntity -> {
+      if (!"Match".equals(balanceComparisonValidationEntity.getValidation())) {
+        if(balanceComparisonValidationEntity.getFinalBalanceAnterior() != null){
+          errors.add(
+              String.format(msgError, balanceComparisonValidationEntity.getCode(),
+                  balanceComparisonValidationEntity.getFinalBalanceAnterior(),
+                  balanceComparisonValidationEntity.getInitialBalanceActual()));
+        }
+      }
+    });
+
+    return errors;
+  }
+
+  @Override
+  public void deleteProcess(String idProcess, Long idClient, String idBusiness) {
+      System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
+
+      deleteCategoriasContables(idProcess);
+
+      System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
+
+
+      deleteProcessBd(idProcess, idClient, idBusiness);
+
+      System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
+  }
+
+  @Transactional
+  protected void deleteProcessBd(String idProcess, Long idClient, String idBusiness) {
+    updateToError(idProcess, List.of("Process deleted"));
+  }
+
+  @Transactional
+  protected void deleteCategoriasContables(String idProcess) {
+    cuentaContableRepository.deleteOldRecords(idProcess);
+  }
+
+  @Override
+  public List<CuentaContableCategoriesEntity> getCuentaContableCategories(String idCategoryTemplate, String idProcess) {
+    return null;//cuentaContableCategoriesRepository.findByCategoryTemplatePrincipalQuery(idProcess, idCategoryTemplate);
   }
 }

@@ -16,5 +16,6 @@ public class AccountingResponse {
   private List<String> columnsName;
 
   private long numberOfRecords;
+  private String presignedUrl;
   private List<Accounting> accounting;
 }

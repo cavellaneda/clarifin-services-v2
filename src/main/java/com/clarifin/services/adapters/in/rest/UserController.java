@@ -1,11 +1,9 @@
 package com.clarifin.services.adapters.in.rest;
 
-import com.clarifin.services.domain.Business;
 import com.clarifin.services.domain.Login;
 import com.clarifin.services.domain.Session;
 import com.clarifin.services.domain.User;
 import com.clarifin.services.domain.UserComplete;
-import com.clarifin.services.port.in.BusinessUseCase;
 import com.clarifin.services.port.in.UserUseCase;
 import java.util.List;
 import java.util.Optional;

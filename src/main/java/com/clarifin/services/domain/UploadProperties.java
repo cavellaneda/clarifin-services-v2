@@ -11,7 +11,7 @@ public class UploadProperties {
   private Long idClient;
   private String idFormat;
   private Date dateImport;
-  private String idBusiness;
+  private String idCompany;
 
 
 }

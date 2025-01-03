@@ -46,6 +46,31 @@ dependencies {
 	implementation 'org.apache.poi:poi:5.2.2'
 	implementation 'org.apache.poi:poi-ooxml:5.2.2'
 
+	//implementation 'software.amazon.awssdk:s3' // Dependencia para S3Client
+	implementation 'software.amazon.awssdk:auth' // Dependencia para manejar autenticación
+	implementation 'software.amazon.awssdk:regions' // Dependencia para manejar regiones
+
+	// https://mvnrepository.com/artifact/software.amazon.awssdk/auth
+	implementation 'software.amazon.awssdk:auth:2.27.9'
+	// https://mvnrepository.com/artifact/software.amazon.awssdk/regions
+	implementation 'software.amazon.awssdk:regions:2.27.9'
+
+	// https://mvnrepository.com/artifact/software.amazon.awssdk/protocol-core
+	implementation 'software.amazon.awssdk:protocol-core:2.27.9'
+
+
+	// https://mvnrepository.com/artifact/software.amazon.awssdk/s3-transfer-manager
+	implementation 'software.amazon.awssdk:s3-transfer-manager:2.27.9'
+
+	// https://mvnrepository.com/artifact/com.google.code.gson/gson
+	implementation 'com.google.code.gson:gson:2.11.0'
+
+
+	// https://mvnrepository.com/artifact/software.amazon.awssdk/s3
+	testImplementation 'software.amazon.awssdk:s3:2.27.9'
+
+
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

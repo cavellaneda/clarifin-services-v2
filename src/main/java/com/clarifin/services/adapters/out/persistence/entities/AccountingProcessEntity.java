@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -29,10 +30,14 @@ public class AccountingProcessEntity {
   private String idFormat;
   private Date dateProcess;
   private Long idClient;
-  private String idBusiness;
+  private String idCompany;
   private String status;
 
+  @Column(columnDefinition = "TEXT")
   private String errorDescription;
+
+  @Column(columnDefinition = "TEXT")
+  private String idBusinessUnit;
 
   @CreatedDate
   @Column(nullable = false, updatable = false)

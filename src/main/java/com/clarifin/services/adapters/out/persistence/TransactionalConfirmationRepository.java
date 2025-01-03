@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TransactionalConfirmationRepository extends
     JpaRepository<TransactionalConfirmationEntity, String> {
 
-  List<TransactionalConfirmationEntity> findTransactionalConfirmationEntitiesByIdProcess(
-      String idProcess);
+  List<TransactionalConfirmationEntity> findTransactionalConfirmationEntitiesByIdProcessAndIdBusinessUnit(
+      String idProcess, String idBusinessUnit);
 
 }

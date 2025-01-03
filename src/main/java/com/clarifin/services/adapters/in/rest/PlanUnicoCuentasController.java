@@ -1,5 +1,6 @@
 package com.clarifin.services.adapters.in.rest;
 
+import com.clarifin.services.domain.DeleteCommand;
 import com.clarifin.services.domain.ResultUploadProcess;
 import com.clarifin.services.domain.UploadProperties;
 import com.clarifin.services.port.in.PucUseCase;
@@ -20,6 +21,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -106,16 +108,30 @@ public class PlanUnicoCuentasController {
   @PostMapping("/upload")
   public ResponseEntity<ResultUploadProcess> upload(@RequestParam("file") MultipartFile file,
       @RequestParam("idClient") Long idClient, @RequestParam("idFormat") String idFormat,
-      @RequestParam("dateImport") String dateImport, @RequestParam("idBusiness") String idBusiness) {
+      @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany) {
 
     UploadProperties uploadProperties = UploadProperties.builder()
         .idClient(idClient)
         .idFormat(idFormat)
         .dateImport(UtilDate.convertDate(dateImport))
-        .idBusiness(idBusiness)
+        .idCompany(idCompany)
         .build();
     ResultUploadProcess result = pucUseCase.uploadFile(file, uploadProperties);
     return "SUCCESS".equalsIgnoreCase(result.getStatus()) ? ResponseEntity.ok().body(result)
         : ResponseEntity.unprocessableEntity().body(result);
+  }
+
+  @DeleteMapping()
+  public ResponseEntity<String> delete(
+      @RequestParam("idClient") Long idClient, @RequestParam("dateImport") String dateImport, @RequestParam("idBusiness") String idBusiness) {
+
+    DeleteCommand deleteCommand = DeleteCommand.builder()
+        .idClient(idClient)
+        .dateImport(UtilDate.convertDate(dateImport))
+        .idBusiness(idBusiness)
+        .build();
+    boolean result = pucUseCase.deleteProcess(deleteCommand);
+    return result ? ResponseEntity.noContent().build()
+        : ResponseEntity.internalServerError().body("Error borrando la informacion.");
   }
 }

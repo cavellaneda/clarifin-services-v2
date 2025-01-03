@@ -26,6 +26,9 @@ public class TransactionalConfirmationEntity {
   @Column(name = "id_process")
   private String idProcess;
 
+  @Column(name = "id_business_unit")
+  private String idBusinessUnit;
+
   @Column(name = "transactional")
   private String transactional;
 }

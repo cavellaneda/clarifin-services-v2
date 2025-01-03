@@ -16,6 +16,10 @@ public class Accounting {
   private String description;
   private String transactional;
   private String category;
+  private String metadata;
+  private String businessUnit;
+  private String businessUnitExternalHostId;
+
 
   private Map<String, Double> balances ;
 }

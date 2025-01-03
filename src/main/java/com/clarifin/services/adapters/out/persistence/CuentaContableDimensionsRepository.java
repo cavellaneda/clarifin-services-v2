@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CuentaContableDimensionsRepository extends
     JpaRepository<CuentaContableDimensionsEntity, String> {
 
-  List<CuentaContableDimensionsEntity> findCuentaContableDimensionsEntitiesByIdClientAndIdBusinessAndDateProcessIsBetween(
-      Long idClient, String idBusiness, Date startDate, Date endDate);
+  List<CuentaContableDimensionsEntity> findCuentaContableDimensionsEntitiesByIdClientAndIdCompanyAndDateProcessIsBetween(
+      Long idClient, String idCompany, Date startDate, Date endDate);
 
-  List<CuentaContableDimensionsEntity> findCuentaContableDimensionsEntitiesByIdClientAndIdBusinessAndIdProcess(
-      Long idClient, String idBusiness, String idProcess);
+  List<CuentaContableDimensionsEntity> findCuentaContableDimensionsEntitiesByIdClientAndIdCompanyAndIdProcess(
+      Long idClient, String idCompany, String idProcess);
 }

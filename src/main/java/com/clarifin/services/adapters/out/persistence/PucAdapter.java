@@ -37,14 +37,14 @@ public class PucAdapter implements PucPort {
 
   @Override
   public List<CuentaContableDimensionsEntity> getCuentaContableDimensions(Long idClient,
-      String idBusiness, Date startDate, Date endDate) {
-    return cuentaContableDimensionsRepository.findCuentaContableDimensionsEntitiesByIdClientAndIdBusinessAndDateProcessIsBetween(idClient, idBusiness, startDate, endDate);
+      String idCompany, Date startDate, Date endDate) {
+    return cuentaContableDimensionsRepository.findCuentaContableDimensionsEntitiesByIdClientAndIdCompanyAndDateProcessIsBetween(idClient, idCompany, startDate, endDate);
   }
 
   @Override
   public List<CuentaContableDimensionsEntity> getCuentaContableDimensions(Long idClient,
-      String idBusiness, String idProcess) {
-    return cuentaContableDimensionsRepository.findCuentaContableDimensionsEntitiesByIdClientAndIdBusinessAndIdProcess(idClient, idBusiness, idProcess);
+      String idCompany, String idProcess) {
+    return cuentaContableDimensionsRepository.findCuentaContableDimensionsEntitiesByIdClientAndIdCompanyAndIdProcess(idClient, idCompany, idProcess);
   }
 
 

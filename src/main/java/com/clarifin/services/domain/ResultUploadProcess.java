@@ -14,6 +14,7 @@ public class ResultUploadProcess {
 
   private String idProcess;
   private String status;
+  private String rows;
   private String errorDescription;
   private List<String> errors;
 

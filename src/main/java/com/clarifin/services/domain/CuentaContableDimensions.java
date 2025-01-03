@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CuentaContableDimensions {
 
+    private String category;
     private String transactional;
     private String code;
     private String description;
@@ -19,4 +20,6 @@ public class CuentaContableDimensions {
     private Double debits;
     private Double credits;
     private Double finalBalance;
+    private String metadata;
+    private String idBusinessUnit;
 }

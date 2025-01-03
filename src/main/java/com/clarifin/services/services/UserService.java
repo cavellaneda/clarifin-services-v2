@@ -1,18 +1,16 @@
 package com.clarifin.services.services;
 
-import com.clarifin.services.adapters.out.persistence.entities.BusinessEntity;
 import com.clarifin.services.adapters.out.persistence.entities.UserBusinessEntity;
 import com.clarifin.services.adapters.out.persistence.entities.UserEntity;
-import com.clarifin.services.domain.Business;
+import com.clarifin.services.domain.Company;
 import com.clarifin.services.domain.Login;
 import com.clarifin.services.domain.Session;
 import com.clarifin.services.domain.User;
 import com.clarifin.services.domain.UserComplete;
-import com.clarifin.services.domain.mappers.BusinessMapper;
+import com.clarifin.services.domain.mappers.CompanyMapper;
 import com.clarifin.services.domain.mappers.UserMapper;
-import com.clarifin.services.port.in.BusinessUseCase;
 import com.clarifin.services.port.in.UserUseCase;
-import com.clarifin.services.port.out.BusinessPort;
+import com.clarifin.services.port.out.CompanyPort;
 import com.clarifin.services.port.out.UserBusinessPort;
 import com.clarifin.services.port.out.UserPort;
 import com.clarifin.services.services.util.UtilString;
@@ -29,13 +27,13 @@ public class UserService implements UserUseCase {
 
   final UserMapper mapper = UserMapper.INSTANCE;
 
-  final BusinessMapper businessMapper = BusinessMapper.INSTANCE;
+  final CompanyMapper companyMapper = CompanyMapper.INSTANCE;
 
   @Autowired
   private UserPort userPort;
 
   @Autowired
-  private BusinessPort businessPort;
+  private CompanyPort companyPort;
 
   @Autowired
   private UserBusinessPort userBusinessPort;
@@ -94,7 +92,8 @@ public class UserService implements UserUseCase {
       return false;
     }
 
-    final Optional<Business> business = businessPort.findByClientAndIdBusiness(idClient, idBusiness).map(businessMapper::entityToDomain);
+    final Optional<Company> business = companyPort.findByClientAndIdCompany(idClient, idBusiness).map(
+        companyMapper::entityToDomain);
 
     if (business.isEmpty()) {
       return false;

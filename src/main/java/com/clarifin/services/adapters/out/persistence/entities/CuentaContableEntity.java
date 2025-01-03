@@ -1,5 +1,6 @@
 package com.clarifin.services.adapters.out.persistence.entities;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,10 @@ public class CuentaContableEntity {
   private Double credits;
   private Double finalBalance;
   private String transactional;
+
   private String idProcess;
   private Long idClient;
+  private String idBusinessUnit;
+  @Column(name = "metadata")
+  private String metadata;
 }
