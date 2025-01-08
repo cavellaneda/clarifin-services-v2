@@ -22,6 +22,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -105,9 +106,9 @@ public class PlanUnicoCuentasController {
     return rowData;
   }
 
-  @PostMapping("/upload")
-  public ResponseEntity<ResultUploadProcess> upload(@RequestParam("file") MultipartFile file,
-      @RequestParam("idClient") Long idClient, @RequestParam("idFormat") String idFormat,
+  @PostMapping("/client/{idClient}/upload")
+  public ResponseEntity<ResultUploadProcess> upload(@PathVariable Long idClient, @RequestParam("file") MultipartFile file,
+      @RequestParam("idFormat") String idFormat,
       @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany) {
 
     UploadProperties uploadProperties = UploadProperties.builder()
