@@ -327,11 +327,23 @@ public class PucService implements PucUseCase {
 
     double resultDouble = cuentaContableEntity.getInitialBalance() + cuentaContableEntity.getDebits() - cuentaContableEntity.getCredits();
 
-    final String result = String.format("%.2f", resultDouble);
+    String result = String.format("%.2f", resultDouble);
 
-    if(cuentaContableEntity.getFinalBalance() != Double.parseDouble(result))
+    String finalBalanceString = String.format("%.2f", cuentaContableEntity.getFinalBalance());
+
+    if(result.equals("0.00") || result.equals("-0.00"))
     {
-      error.add("Error en el registro cuenta PUC: " + cuentaContableEntity.getCode() + " error en el saldo final: valor esperado: " + cuentaContableEntity.getFinalBalance() + " valor obtenido: " + Double.parseDouble(result));
+      result = "0";
+    }
+
+    if (finalBalanceString.equals("0.00") || finalBalanceString.equals("-0.00"))
+    {
+      finalBalanceString = "0";
+    }
+
+    if(!finalBalanceString.equals(result))
+    {
+      error.add("Error en el registro cuenta PUC: " + cuentaContableEntity.getCode() + " error en el saldo final: valor esperado: " + finalBalanceString + " valor obtenido: " + result);
     }
   }
 
