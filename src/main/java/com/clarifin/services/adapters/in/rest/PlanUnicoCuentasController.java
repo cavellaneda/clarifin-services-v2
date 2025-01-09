@@ -122,9 +122,9 @@ public class PlanUnicoCuentasController {
         : ResponseEntity.unprocessableEntity().body(result);
   }
 
-  @DeleteMapping()
+  @DeleteMapping("/client/{idClient}")
   public ResponseEntity<String> delete(
-      @RequestParam("idClient") Long idClient, @RequestParam("dateImport") String dateImport, @RequestParam("idBusiness") String idBusiness) {
+      @PathVariable("idClient") Long idClient, @RequestParam("dateImport") String dateImport, @RequestParam("idBusiness") String idBusiness) {
 
     DeleteCommand deleteCommand = DeleteCommand.builder()
         .idClient(idClient)
