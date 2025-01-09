@@ -21,5 +21,6 @@ public class AccountingProcessResponse {
   private String companyName;
   private String idFormat;
   private String formatName;
+  private String dateProcess;
   private List<BusinessUnit> businessUnits;
 }

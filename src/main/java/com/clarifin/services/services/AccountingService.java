@@ -470,6 +470,7 @@ public class AccountingService implements AccountingUseCase {
             .companyName(client.get().getName())
             .businessUnits(buildBusinessUnitList(accountingProcessEntity.getIdBusinessUnit(), businessUnitMap))
             .idFormat(accountingProcessEntity.getIdFormat())
+            .dateProcess(accountingProcessEntity.getDateProcess().toString())
             .build()
     ).collect(Collectors.toList());
   }
