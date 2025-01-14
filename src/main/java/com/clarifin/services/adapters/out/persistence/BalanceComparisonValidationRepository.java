@@ -14,7 +14,7 @@ public interface BalanceComparisonValidationRepository extends
   @Query(value = "WITH previous_month AS (" +
       "    SELECT cce.code, " +
       "           cce.id_business_unit, " +
-      "           SUM(cce.final_balance) AS final_balance " +
+      "           ROUND(SUM(cce.final_balance), 2) AS final_balance " +
       "    FROM cuenta_contable_entity cce " +
       "    JOIN accounting_process_entity ape ON cce.id_process = ape.id " +
       "    WHERE ape.id = :id_previous " +
@@ -23,7 +23,7 @@ public interface BalanceComparisonValidationRepository extends
       "current_month AS (" +
       "    SELECT cce.code, " +
       "           cce.id_business_unit, " +
-      "           SUM(cce.initial_balance) AS initial_balance " +
+      "           ROUND(SUM(cce.initial_balance), 2) AS initial_balance " +
       "    FROM cuenta_contable_entity cce " +
       "    JOIN accounting_process_entity ape ON cce.id_process = ape.id " +
       "    WHERE ape.id = :id_current " +
