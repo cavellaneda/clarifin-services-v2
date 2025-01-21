@@ -24,10 +24,10 @@ public class CategoriesController {
   @Autowired
   private CategoriesClientUseCase categoriesClientUseCase;
 
-  @GetMapping("/client/{idClient}/business/{idBusiness}/categories")
-  public ResponseEntity<List<CategoriesClient>> getCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idBusiness
+  @GetMapping("/client/{idClient}/company/{idCompany}/categories")
+  public ResponseEntity<List<CategoriesClient>> getCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idCompany
   ) {
-    return ResponseEntity.ok().body(categoriesClientUseCase.getCategoriesByClient(idClient, idBusiness));
+    return ResponseEntity.ok().body(categoriesClientUseCase.getCategoriesByClient(idClient, idCompany));
   }
 
   @GetMapping("/categories")
@@ -35,18 +35,18 @@ public class CategoriesController {
     return ResponseEntity.ok().body(categoriesClientUseCase.getCategories());
   }
 
-  @PostMapping("/client/{idClient}/business/{idBusiness}/template/{idTemplate}/categories")
-  public ResponseEntity<List<String>> postCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idBusiness, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
+  @PostMapping("/client/{idClient}/company/{idCompany}/template/{idTemplate}/categories")
+  public ResponseEntity<List<String>> postCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idCompany, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
   ) {
     ;
-    return ResponseEntity.ok().body(categoriesClientUseCase.postCategoriesByTemplateClient(idClient, idBusiness, idTemplate, codeLevels));
+    return ResponseEntity.ok().body(categoriesClientUseCase.postCategoriesByTemplateClient(idClient, idCompany, idTemplate, codeLevels));
   }
 
-  @PatchMapping("/client/{idClient}/business/{idBusiness}/template/{idTemplate}/categories")
-  public ResponseEntity<List<String>> patchCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idBusiness, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
+  @PatchMapping("/client/{idClient}/company/{idCompany}/template/{idTemplate}/categories")
+  public ResponseEntity<List<String>> patchCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idCompany, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
   ) {
     ;
-    return ResponseEntity.ok().body(categoriesClientUseCase.patchCategoriesByTemplateClient(idClient, idBusiness, idTemplate, codeLevels));
+    return ResponseEntity.ok().body(categoriesClientUseCase.patchCategoriesByTemplateClient(idClient, idCompany, idTemplate, codeLevels));
   }
 
 
