@@ -38,14 +38,12 @@ public class CategoriesController {
   @PostMapping("/client/{idClient}/company/{idCompany}/template/{idTemplate}/categories")
   public ResponseEntity<List<String>> postCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idCompany, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
   ) {
-    ;
     return ResponseEntity.ok().body(categoriesClientUseCase.postCategoriesByTemplateClient(idClient, idCompany, idTemplate, codeLevels));
   }
 
   @PatchMapping("/client/{idClient}/company/{idCompany}/template/{idTemplate}/categories")
   public ResponseEntity<List<String>> patchCategoriesByClient(@PathVariable final Long idClient, @PathVariable String idCompany, @PathVariable String idTemplate, @RequestBody List<CodeLevels> codeLevels
   ) {
-    ;
     return ResponseEntity.ok().body(categoriesClientUseCase.patchCategoriesByTemplateClient(idClient, idCompany, idTemplate, codeLevels));
   }
 
