@@ -5,6 +5,7 @@ import com.clarifin.services.domain.ResultUploadProcess;
 import com.clarifin.services.domain.UploadProperties;
 import com.clarifin.services.port.in.PucUseCase;
 import com.clarifin.services.services.util.UtilDate;
+import com.clarifin.services.services.util.UtilUuid;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
@@ -13,6 +14,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
@@ -21,7 +24,9 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -107,19 +112,95 @@ public class PlanUnicoCuentasController {
   }
 
   @PostMapping("/client/{idClient}/upload")
+  @Transactional
   public ResponseEntity<ResultUploadProcess> upload(@PathVariable Long idClient, @RequestParam("file") MultipartFile file,
       @RequestParam("idFormat") String idFormat,
-      @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany) {
+      @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany,
+      @RequestParam(value = "ignorePreviousBalance", required = false, defaultValue = "false") Boolean ignorePreviousBalance)
+      throws IOException {
+
+    final String uuid = UtilUuid.generateUuid();
+
+    // 🔹 Convertir `MultipartFile` a `byte[]` antes de hacer async
+    byte[] fileContent = file.getBytes();
+    String fileName = file.getOriginalFilename();
 
     UploadProperties uploadProperties = UploadProperties.builder()
         .idClient(idClient)
         .idFormat(idFormat)
         .dateImport(UtilDate.convertDate(dateImport))
         .idCompany(idCompany)
+        .ignorePreviousBalance(ignorePreviousBalance)
+        .fileContent(fileContent)
+        .fileName(fileName)
         .build();
-    ResultUploadProcess result = pucUseCase.uploadFile(file, uploadProperties);
-    return "SUCCESS".equalsIgnoreCase(result.getStatus()) ? ResponseEntity.ok().body(result)
-        : ResponseEntity.unprocessableEntity().body(result);
+
+    try {
+      ResultUploadProcess result = pucUseCase.uploadFile(file, uploadProperties, uuid).get();
+      return "SUCCESS".equalsIgnoreCase(result.getStatus()) ? ResponseEntity.ok().body(result)
+          : ResponseEntity.unprocessableEntity().body(result);
+    }
+    catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.internalServerError().body(ResultUploadProcess.builder()
+          .idProcess(uuid)
+          .status("ERROR")
+          .errorDescription("Error procesando el archivo.")
+          .build());
+    }
+  }
+
+  @PostMapping("/client/{idClient}/upload/async")
+  @Transactional
+  public ResponseEntity<ResultUploadProcess> uploadAsync(@PathVariable Long idClient, @RequestParam("file") MultipartFile file,
+      @RequestParam("idFormat") String idFormat,
+      @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany,
+      @RequestParam(value = "ignorePreviousBalance", required = false, defaultValue = "false") Boolean ignorePreviousBalance)
+      throws IOException {
+
+    final String uuid = UtilUuid.generateUuid();
+
+    // 🔹 Convertir `MultipartFile` a `byte[]` antes de hacer async
+    byte[] fileContent = file.getBytes();
+    String fileName = file.getOriginalFilename();
+
+    UploadProperties uploadProperties = UploadProperties.builder()
+        .idClient(idClient)
+        .idFormat(idFormat)
+        .dateImport(UtilDate.convertDate(dateImport))
+        .idCompany(idCompany)
+        .fileContent(fileContent)
+        .fileName(fileName)
+        .ignorePreviousBalance(ignorePreviousBalance)
+        .build();
+
+    pucUseCase.uploadFile(file, uploadProperties, uuid);
+
+    return ResponseEntity.ok().body(ResultUploadProcess.builder()
+        .idProcess(uuid)
+        .status("PROCESSING")
+        .errorDescription("Inicio el proceso del archivo")
+        .build());
+  }
+
+  @GetMapping("/client/{idClient}/upload/status/{idProcess}")
+  public ResponseEntity<ResultUploadProcess> uploadAsync(@PathVariable Long idClient, @PathVariable String idProcess)
+      throws ExecutionException, InterruptedException {
+    CompletableFuture<ResultUploadProcess> future = pucUseCase.getUploadResult(idProcess);
+
+    if (future == null) {
+      return ResponseEntity.notFound().build();
+    }
+
+    if (!future.isDone()) {
+      return ResponseEntity.ok().body(ResultUploadProcess.builder()
+          .idProcess(idProcess)
+          .status("PROCESSING")
+          .errorDescription("aun se esta procesando el archivo")
+          .build());
+    }
+
+    return ResponseEntity.ok(future.get());
   }
 
   @DeleteMapping("/client/{idClient}")

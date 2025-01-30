@@ -12,6 +12,8 @@ public class UploadProperties {
   private String idFormat;
   private Date dateImport;
   private String idCompany;
-
+  private Boolean ignorePreviousBalance;
+  private byte[] fileContent;
+  private String fileName ;
 
 }

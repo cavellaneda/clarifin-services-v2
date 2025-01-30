@@ -13,6 +13,8 @@ public interface PucPort {
 
   List<CuentaContableEntity> saveCuentasContables(@NotNull List<CuentaContableEntity> cuentasContables);
 
+  void batchInsert(List<CuentaContableEntity> entities);
+
   void deleteCuentasContables(@NotBlank String uuid);
 
   List<CuentaContableDimensionsEntity> getCuentaContableDimensions(Long idClient, String idBusiness, Date startDate,

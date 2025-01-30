@@ -18,6 +18,7 @@ import com.clarifin.services.port.out.FormatFilePort;
 import com.clarifin.services.port.out.PucPort;
 import com.clarifin.services.services.util.UtilUuid;
 import com.google.gson.Gson;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -28,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -36,7 +39,9 @@ import org.apache.poi.util.StringUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.mapstruct.ap.internal.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -54,10 +59,151 @@ public class PucService implements PucUseCase {
   @Autowired
   private CompanyUseCase companyUseCase;
 
+  private final ConcurrentHashMap<String, CompletableFuture<ResultUploadProcess>> tasks = new ConcurrentHashMap<>();
+
+
+  @Async
+  @Override
+  @Transactional
+  public CompletableFuture<ResultUploadProcess> uploadFile(MultipartFile file, UploadProperties uploadProperties, String uuid) {
+
+    CompletableFuture<ResultUploadProcess> future = CompletableFuture.supplyAsync(() -> {
+      try {
+        return uploadFileProcess(file, uploadProperties, uuid);
+      } catch (Exception e) {
+        e.printStackTrace();
+        return ResultUploadProcess.builder().idProcess(uuid).status("ERROR").errorDescription(e.getMessage()).build();
+      }
+    });
+    tasks.put(uuid, future);
+    return future;
+  }
 
   @Override
-  public ResultUploadProcess uploadFile(MultipartFile file, UploadProperties uploadProperties) {
-    final String uuid = UtilUuid.generateUuid();
+  public boolean deleteProcess(DeleteCommand deleteCommand) {
+
+    final List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(deleteCommand.getIdClient(), deleteCommand.getIdBusiness(), deleteCommand.getDateImport(),
+        new Date());
+
+    final List<String> processIds = new ArrayList<>();
+
+    processList.forEach(process -> {
+      processIds.add(process.getId());
+    });
+
+    try {
+      processIds.forEach(p -> {
+        System.out.println("entro: " + p);
+        accountingProcessPort.deleteProcess(p, deleteCommand.getIdClient(), deleteCommand.getIdBusiness());
+        System.out.println("salio: " + p);
+      });
+    }
+    catch (Exception e) {
+      e.printStackTrace();
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public CompletableFuture<ResultUploadProcess> getUploadResult(String taskId) {
+    return tasks.getOrDefault(taskId, CompletableFuture.completedFuture(null));
+  }
+
+  private void validateValues(CuentaContableEntity cuentaContableEntity, List<String> error) {
+
+    double resultDouble = cuentaContableEntity.getInitialBalance() + cuentaContableEntity.getDebits() - cuentaContableEntity.getCredits();
+
+    String result = String.format("%.2f", resultDouble);
+
+    String finalBalanceString = String.format("%.2f", cuentaContableEntity.getFinalBalance());
+
+    if(result.equals("0.00") || result.equals("-0.00"))
+    {
+      result = "0";
+    }
+
+    if (finalBalanceString.equals("0.00") || finalBalanceString.equals("-0.00"))
+    {
+      finalBalanceString = "0";
+    }
+
+    if(!finalBalanceString.equals(result))
+    {
+      error.add("Error en el registro cuenta PUC: " + cuentaContableEntity.getCode() + " error en el saldo final: valor esperado: " + finalBalanceString + " valor obtenido: " + result);
+    }
+  }
+
+  private Map<String, List<Map<String, Object>>> readFileWithFormat(MultipartFile file,
+      UploadProperties uploadProperties,
+      FormatFile formatFile) {
+
+    Map<String, List<Map<String, Object>>> response = new HashMap<>();
+    List<Map<String, Object>> data = new ArrayList<>();
+
+    if (uploadProperties.getFileContent() == null || uploadProperties.getFileContent().length == 0) {
+      throw new RuntimeException("Error reading file");
+    }
+
+    try (InputStream is = new ByteArrayInputStream(uploadProperties.getFileContent()); Workbook workbook = new XSSFWorkbook(is)) {
+      Sheet sheet = workbook.getSheetAt(0);
+
+      Long startRow = formatFile.getStartRow();
+      // Etiqueta para el bucle exterior
+      for (Row row : sheet) {
+
+        if (row.getRowNum() >= startRow) {
+          Map<String, Object> rowData = new HashMap<>();
+          boolean allCellsEmpty = true; // Bandera para verificar si todas las celdas están vacías
+
+          for (var cell : row) {
+            CellType cellType = cell.getCellType();
+            switch (cellType.name()) {
+              case "STRING":
+                rowData.put(cell.getColumnIndex() + "", cell.getStringCellValue());
+                break;
+              case "NUMERIC":
+                rowData.put(cell.getColumnIndex() + "", cell.getNumericCellValue());
+                break;
+              case "BOOLEAN":
+                rowData.put(cell.getColumnIndex() + "", String.valueOf(cell.getBooleanCellValue()));
+                break;
+              case "FORMULA":
+                rowData.put(cell.getColumnIndex() + "", cell.getCellFormula());
+                break;
+              default:
+                rowData.put(cell.getColumnIndex() + "", "UNKNOWN");
+                break;
+            }
+            String cellValue = cell.toString();
+
+            if (!cellValue.trim().isEmpty()) {
+              allCellsEmpty = false; // Encuentra una celda no vacía
+            }
+          }
+
+          if (allCellsEmpty) {
+            break; // Rompe el bucle exterior si todas las celdas están vacías
+          }
+
+          data.add(rowData);
+          startRow++;
+        }
+      }
+
+      response.put("data", data);
+    } catch (IOException e) {
+      //response.put("error", "Error reading file: " + e.getMessage());
+    }
+
+    return response;
+  }
+
+  @Transactional
+  protected ResultUploadProcess uploadFileProcess(MultipartFile file,
+      UploadProperties uploadProperties, String uuid)
+  {
 
     final ResultUploadProcess result = ResultUploadProcess.builder().idProcess(uuid)
         .status("INITIAL").build();
@@ -206,7 +352,9 @@ public class PucService implements PucUseCase {
       System.out.printf("Organized records: %s\n", organizedRecords);
 
 
-      final List<CuentaContableEntity> cuentaContableEntities = pucPort.saveCuentasContables(cuentasContables);
+      //final List<CuentaContableEntity> cuentaContableEntities = pucPort.saveCuentasContables(cuentasContables);
+      pucPort.batchInsert(cuentasContables);
+      final List<CuentaContableEntity> cuentaContableEntities = cuentasContables;
 
       final List<String> idBusinessUnits ;
 
@@ -218,23 +366,25 @@ public class PucService implements PucUseCase {
 
 
       idBusinessUnits.forEach(idBusinessUnit -> {
-            accountingProcessPort.getTransactionalConfirmationByIdProcessAndIdBusinessUnit(uuid, idBusinessUnit)
-                .forEach(transactionalConfirmationEntity -> {
-                  for (CuentaContableEntity cuentaContableEntity : cuentaContableEntities) {
-                    if (cuentaContableEntity.getId()
-                        .equalsIgnoreCase(transactionalConfirmationEntity.getId())) {
-                      cuentaContableEntity.setTransactional(
-                          transactionalConfirmationEntity.getTransactional());
-                      cuentaContableToUpdate.add(cuentaContableEntity);
-                      cuentaContableEntities.remove(cuentaContableEntity);
-                      break;
-                    }
-                  }
+        accountingProcessPort.getTransactionalConfirmationByIdProcessAndIdBusinessUnit(uuid, idBusinessUnit)
+            .forEach(transactionalConfirmationEntity -> {
+              for (CuentaContableEntity cuentaContableEntity : cuentaContableEntities) {
+                if (cuentaContableEntity.getId()
+                    .equalsIgnoreCase(transactionalConfirmationEntity.getId())) {
+                  cuentaContableEntity.setTransactional(
+                      transactionalConfirmationEntity.getTransactional());
+                  cuentaContableToUpdate.add(cuentaContableEntity);
+                  cuentaContableEntities.remove(cuentaContableEntity);
+                  break;
+                }
+              }
 
-                });
-          });
+            });
+      });
 
       //TODO quitar cuentas no transaccionales.
+
+      pucPort.deleteCuentasContables(uuid);
 
       List<CuentaContableEntity> cuentaContableFinal = new ArrayList<>();
 
@@ -246,7 +396,9 @@ public class PucService implements PucUseCase {
         }
       });
 
-      pucPort.saveCuentasContables(cuentaContableFinal);
+
+      //pucPort.saveCuentasContables(cuentaContableFinal);
+      pucPort.batchInsert(cuentaContableFinal);
 
       result.setRows(cuentaContableFinal.size()+"");
 
@@ -256,21 +408,23 @@ public class PucService implements PucUseCase {
 
       error.addAll(errorValidate);
 
-      final Calendar calendar = Calendar.getInstance();
-      calendar.setTime(uploadProperties.getDateImport());
-      calendar.add(Calendar.MONTH, -1);
-      final Date dateToFind = calendar.getTime();
+      if(!uploadProperties.getIgnorePreviousBalance()) {
+        final Calendar calendar = Calendar.getInstance();
+        calendar.setTime(uploadProperties.getDateImport());
+        calendar.add(Calendar.MONTH, -1);
+        final Date dateToFind = calendar.getTime();
 
-      final String idProcessPrevious = accountingProcessPort.getProcessByIdClientAndDateProcessAndStateAndBusiness(
-              uploadProperties.getIdClient(), dateToFind, "SUCCESS",
-              uploadProperties.getIdCompany())
-          .map(AccountingProcessEntity::getId)
-          .orElse("");
+        final String idProcessPrevious = accountingProcessPort.getProcessByIdClientAndDateProcessAndStateAndBusiness(
+                uploadProperties.getIdClient(), dateToFind, "SUCCESS",
+                uploadProperties.getIdCompany())
+            .map(AccountingProcessEntity::getId)
+            .orElse("");
 
-      final List<String> errorValidateBalance = accountingProcessPort.getBalanceComparison(
+        final List<String> errorValidateBalance = accountingProcessPort.getBalanceComparison(
             idProcessPrevious, uuid);
 
         error.addAll(errorValidateBalance);
+      }
 
       if (error.size() != 0) {
         pucPort.deleteCuentasContables(uuid);
@@ -294,122 +448,9 @@ public class PucService implements PucUseCase {
       e.printStackTrace();
     }
     return result;
+
   }
 
-  @Override
-  public boolean deleteProcess(DeleteCommand deleteCommand) {
 
-    final List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(deleteCommand.getIdClient(), deleteCommand.getIdBusiness(), deleteCommand.getDateImport(),
-        new Date());
-
-    final List<String> processIds = new ArrayList<>();
-
-    processList.forEach(process -> {
-      processIds.add(process.getId());
-    });
-
-    try {
-      processIds.forEach(p -> {
-        System.out.println("entro: " + p);
-        accountingProcessPort.deleteProcess(p, deleteCommand.getIdClient(), deleteCommand.getIdBusiness());
-        System.out.println("salio: " + p);
-      });
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      return false;
-    }
-
-    return true;
-  }
-
-  private void validateValues(CuentaContableEntity cuentaContableEntity, List<String> error) {
-
-    double resultDouble = cuentaContableEntity.getInitialBalance() + cuentaContableEntity.getDebits() - cuentaContableEntity.getCredits();
-
-    String result = String.format("%.2f", resultDouble);
-
-    String finalBalanceString = String.format("%.2f", cuentaContableEntity.getFinalBalance());
-
-    if(result.equals("0.00") || result.equals("-0.00"))
-    {
-      result = "0";
-    }
-
-    if (finalBalanceString.equals("0.00") || finalBalanceString.equals("-0.00"))
-    {
-      finalBalanceString = "0";
-    }
-
-    if(!finalBalanceString.equals(result))
-    {
-      error.add("Error en el registro cuenta PUC: " + cuentaContableEntity.getCode() + " error en el saldo final: valor esperado: " + finalBalanceString + " valor obtenido: " + result);
-    }
-  }
-
-  private Map<String, List<Map<String, Object>>> readFileWithFormat(MultipartFile file,
-      UploadProperties uploadProperties,
-      FormatFile formatFile) {
-
-    Map<String, List<Map<String, Object>>> response = new HashMap<>();
-    List<Map<String, Object>> data = new ArrayList<>();
-
-    if (file.isEmpty()) {
-      //response.put("error", "No file selected");
-      return response;
-    }
-
-    try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
-      Sheet sheet = workbook.getSheetAt(0);
-
-      Long startRow = formatFile.getStartRow();
-      // Etiqueta para el bucle exterior
-      for (Row row : sheet) {
-
-        if (row.getRowNum() >= startRow) {
-          Map<String, Object> rowData = new HashMap<>();
-          boolean allCellsEmpty = true; // Bandera para verificar si todas las celdas están vacías
-
-          for (var cell : row) {
-            CellType cellType = cell.getCellType();
-            switch (cellType.name()) {
-              case "STRING":
-                rowData.put(cell.getColumnIndex() + "", cell.getStringCellValue());
-                break;
-              case "NUMERIC":
-                rowData.put(cell.getColumnIndex() + "", cell.getNumericCellValue());
-                break;
-              case "BOOLEAN":
-                rowData.put(cell.getColumnIndex() + "", String.valueOf(cell.getBooleanCellValue()));
-                break;
-              case "FORMULA":
-                rowData.put(cell.getColumnIndex() + "", cell.getCellFormula());
-                break;
-              default:
-                rowData.put(cell.getColumnIndex() + "", "UNKNOWN");
-                break;
-            }
-            String cellValue = cell.toString();
-
-            if (!cellValue.trim().isEmpty()) {
-              allCellsEmpty = false; // Encuentra una celda no vacía
-            }
-          }
-
-          if (allCellsEmpty) {
-            break; // Rompe el bucle exterior si todas las celdas están vacías
-          }
-
-          data.add(rowData);
-          startRow++;
-        }
-      }
-
-      response.put("data", data);
-    } catch (IOException e) {
-      //response.put("error", "Error reading file: " + e.getMessage());
-    }
-
-    return response;
-  }
 }
+

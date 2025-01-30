@@ -471,6 +471,7 @@ public class AccountingService implements AccountingUseCase {
             .businessUnits(buildBusinessUnitList(accountingProcessEntity.getIdBusinessUnit(), businessUnitMap))
             .idFormat(accountingProcessEntity.getIdFormat())
             .dateProcess(accountingProcessEntity.getDateProcess().toString())
+            .errors(accountingProcessEntity.getErrorDescription())
             .build()
     ).collect(Collectors.toList());
   }

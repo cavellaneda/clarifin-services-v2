@@ -1,13 +1,12 @@
 package com.clarifin.services.adapters.out.persistence;
 
-import com.clarifin.services.adapters.out.persistence.entities.ClientEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CuentaContableDimensionsEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CuentaContableEntity;
-import com.clarifin.services.port.out.ClientPort;
 import com.clarifin.services.port.out.PucPort;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,6 +22,24 @@ public class PucAdapter implements PucPort {
   @Autowired
   private CuentaContableDimensionsRepository cuentaContableDimensionsRepository;
 
+  @PersistenceContext
+  private EntityManager entityManager;
+
+  private static final int BATCH_SIZE = 50; // Tamaño del batch
+
+  @Transactional
+  public void batchInsert(List<CuentaContableEntity> entities) {
+    for (int i = 0; i < entities.size(); i++) {
+      entityManager.persist(entities.get(i));
+      if (i > 0 && i % BATCH_SIZE == 0) {
+        entityManager.flush();
+        entityManager.clear();
+      }
+    }
+    entityManager.flush();
+    entityManager.clear();
+  }
+
 
   @Override
   public List<CuentaContableEntity> saveCuentasContables(List<CuentaContableEntity> cuentasContables) {
@@ -32,7 +49,7 @@ public class PucAdapter implements PucPort {
   @Override
   @Transactional
   public void deleteCuentasContables(String uuid) {
-    cuentaContableRepository.deleteCuentaContableEntitiesByIdProcess(uuid);
+    cuentaContableRepository.deleteOldRecords(uuid);
   }
 
   @Override

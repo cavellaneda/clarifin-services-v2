@@ -150,6 +150,7 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
   }
 
   @Override
+  @Transactional
   public void updateToError(String uuid, List<String> error) {
     final AccountingProcessEntity process = accountingProcessRepository.getById(uuid);
     process.setStatus("ERROR");
@@ -158,6 +159,7 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
   }
 
   @Override
+  @Transactional
   public void updateToSuccess(String uuid) {
     final AccountingProcessEntity process = accountingProcessRepository.getById(uuid);
     process.setStatus("SUCCESS");
