@@ -299,12 +299,12 @@ public class AccountingService implements AccountingUseCase {
     String category = null ;
 
     for (String templateId : templateCustomIds) {
-      category = categoriesLevel.get(code + "-" + templateId);
+      category = categoriesLevel.get(code + "-" + templateId + "-" + idBusinessUnit);
       if(category != null) break;
     }
 
     if (category == null) {
-      category = categoriesLevel.get(code + "-" + templateBaseIds.get(0));
+      category = categoriesLevel.get(code + "-" + templateBaseIds.get(0) + "-null");
       /*if(code.length() <= 4){
         if (category == null) {
           category = uncategory.get(code.substring(0, 1));
