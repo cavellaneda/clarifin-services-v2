@@ -504,9 +504,9 @@ public class AccountingService implements AccountingUseCase {
       {
 
         for (CuentaContableDimensions cuentaContableDimensions : toWriteCsv.getResult()) {
-          String category = cuentaContableDimensions.getCode().length() > 6
+          String category = cuentaContableDimensions.getTransactional().equals("S")
               ? validateCategory(cuentaContableDimensions.getCode(), categoriesLevel, templateBaseId, templateCustomId,
-              null)
+              cuentaContableDimensions.getIdBusinessUnit())
               : "";
 
           String businessExternalHostId = finalBusinessUnitList.stream().filter(businessUnitEntity -> businessUnitEntity.getId().equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get().getExternalHostId();

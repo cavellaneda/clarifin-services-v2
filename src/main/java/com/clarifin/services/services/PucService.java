@@ -220,12 +220,14 @@ public class PucService implements PucUseCase {
         });
 
     if (result.getStatus().equals("ERROR")) {
+      updateError(uuid, List.of(result.getErrorDescription()));
       return result;
     }
 
     Optional<Company> company = companyUseCase.findCompanyById(uploadProperties.getIdCompany(), uploadProperties.getIdClient());
 
     if (!company.isPresent()) {
+      updateError(uuid, List.of("No se encontró la empresa"));
       result.setStatus("ERROR");
       result.setErrorDescription("No se encontró la empresa");
       return result;
@@ -343,6 +345,7 @@ public class PucService implements PucUseCase {
       }
 
       if (error.size() != 0) {
+        updateError(uuid, error);
         result.setStatus("ERROR");
         result.setErrorDescription("Error validando el proceso");
         result.setErrors(error);
@@ -428,7 +431,7 @@ public class PucService implements PucUseCase {
 
       if (error.size() != 0) {
         pucPort.deleteCuentasContables(uuid);
-        accountingProcessPort.updateToError(uuid, error);
+        updateError(uuid, error);
         result.setStatus("ERROR");
         result.setErrorDescription("Error validando el proceso");
         result.setErrors(error);
@@ -449,6 +452,10 @@ public class PucService implements PucUseCase {
     }
     return result;
 
+  }
+
+  private void updateError(String uuid, List<String> error) {
+    accountingProcessPort.updateToError(uuid, error);
   }
 
 
