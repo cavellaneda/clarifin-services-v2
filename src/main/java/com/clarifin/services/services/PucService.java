@@ -21,7 +21,8 @@ import com.google.gson.Gson;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -31,11 +32,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.util.StringUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.mapstruct.ap.internal.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -399,6 +400,22 @@ public class PucService implements PucUseCase {
         }
       });
 
+      AtomicReference<Double> totalFile = new AtomicReference<>(0.0);
+
+      cuentaContableFinal.stream().forEach(cuentaContableEntity -> {
+        totalFile.set(totalFile.get() + (cuentaContableEntity.getFinalBalance()));
+      });
+
+      double totalFileRound = round(totalFile.get(), 2);
+
+      if(0 != totalFileRound){
+        error.add("Error en el archivo: el total del calculo de contrabilidad total no es de 0: " + totalFileRound);
+        updateError(uuid, error);
+        result.setStatus("ERROR");
+        result.setErrorDescription("Error validando el proceso");
+        result.setErrors(error);
+        return result;
+      }
 
       //pucPort.saveCuentasContables(cuentaContableFinal);
       pucPort.batchInsert(cuentaContableFinal);
@@ -456,6 +473,14 @@ public class PucService implements PucUseCase {
 
   private void updateError(String uuid, List<String> error) {
     accountingProcessPort.updateToError(uuid, error);
+  }
+
+  private double round(double value, int places) {
+    if (places < 0) throw new IllegalArgumentException("Decimal places must be non-negative");
+
+    BigDecimal bd = BigDecimal.valueOf(value);
+    bd = bd.setScale(places, RoundingMode.HALF_UP); // Redondeo estándar
+    return bd.doubleValue();
   }
 
 
