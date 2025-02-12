@@ -47,4 +47,8 @@ public class AccountingProcessEntity {
   @Column(nullable = false)
   private LocalDateTime updatedAt;
 
+  private String userCreator;
+  private String userUpdate;
+
+
 }

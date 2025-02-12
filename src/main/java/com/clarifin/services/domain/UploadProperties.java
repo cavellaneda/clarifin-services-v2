@@ -15,5 +15,6 @@ public class UploadProperties {
   private Boolean ignorePreviousBalance;
   private byte[] fileContent;
   private String fileName ;
+  private String userCreator;
 
 }

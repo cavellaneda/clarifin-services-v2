@@ -1,5 +1,7 @@
 package com.clarifin.services.adapters.in.rest;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.clarifin.services.domain.DeleteCommand;
 import com.clarifin.services.domain.ResultUploadProcess;
 import com.clarifin.services.domain.UploadProperties;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -113,11 +116,15 @@ public class PlanUnicoCuentasController {
 
   @PostMapping("/client/{idClient}/upload")
   @Transactional
-  public ResponseEntity<ResultUploadProcess> upload(@PathVariable Long idClient, @RequestParam("file") MultipartFile file,
+  public ResponseEntity<ResultUploadProcess> upload(
+      @RequestHeader("Authorization") String authorization,
+      @PathVariable Long idClient, @RequestParam("file") MultipartFile file,
       @RequestParam("idFormat") String idFormat,
       @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany,
       @RequestParam(value = "ignorePreviousBalance", required = false, defaultValue = "false") Boolean ignorePreviousBalance)
       throws IOException {
+
+    String userId= getUser(authorization);
 
     final String uuid = UtilUuid.generateUuid();
 
@@ -133,6 +140,7 @@ public class PlanUnicoCuentasController {
         .ignorePreviousBalance(ignorePreviousBalance)
         .fileContent(fileContent)
         .fileName(fileName)
+        .userCreator(userId)
         .build();
 
     try {
@@ -150,13 +158,42 @@ public class PlanUnicoCuentasController {
     }
   }
 
+  private String getUser(String authorization) {
+
+    try {
+      authorization = authorization.replace("Bearer ", "");
+
+      String userId = decodeJwt(authorization, "sub");
+      String username = decodeJwt(authorization, "preferred_username");
+
+      userId = String.join("|", username, userId );
+      return userId;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return "NOT FOUND";
+    }
+  }
+
+  private String decodeJwt(String authorization, String claim) {
+
+    DecodedJWT jwt = JWT.decode(authorization);
+
+    // Obtener claims específicos
+    String result = jwt.getClaim(claim).asString();
+    return result;
+  }
+
   @PostMapping("/client/{idClient}/upload/async")
   @Transactional
-  public ResponseEntity<ResultUploadProcess> uploadAsync(@PathVariable Long idClient, @RequestParam("file") MultipartFile file,
+  public ResponseEntity<ResultUploadProcess> uploadAsync(
+      @RequestHeader("Authorization") String authorization,
+      @PathVariable Long idClient, @RequestParam("file") MultipartFile file,
       @RequestParam("idFormat") String idFormat,
       @RequestParam("dateImport") String dateImport, @RequestParam("idCompany") String idCompany,
       @RequestParam(value = "ignorePreviousBalance", required = false, defaultValue = "false") Boolean ignorePreviousBalance)
       throws IOException {
+
+    String userId= getUser(authorization);
 
     final String uuid = UtilUuid.generateUuid();
 
@@ -172,6 +209,7 @@ public class PlanUnicoCuentasController {
         .fileContent(fileContent)
         .fileName(fileName)
         .ignorePreviousBalance(ignorePreviousBalance)
+        .userCreator(userId)
         .build();
 
     pucUseCase.uploadFile(file, uploadProperties, uuid);
@@ -205,12 +243,16 @@ public class PlanUnicoCuentasController {
 
   @DeleteMapping("/client/{idClient}")
   public ResponseEntity<String> delete(
+      @RequestHeader("Authorization") String authorization,
       @PathVariable("idClient") Long idClient, @RequestParam("dateImport") String dateImport, @RequestParam("idBusiness") String idBusiness) {
+
+    String userId= getUser(authorization);
 
     DeleteCommand deleteCommand = DeleteCommand.builder()
         .idClient(idClient)
         .dateImport(UtilDate.convertDate(dateImport))
         .idBusiness(idBusiness)
+        .userDelete(userId)
         .build();
     boolean result = pucUseCase.deleteProcess(deleteCommand);
     return result ? ResponseEntity.noContent().build()

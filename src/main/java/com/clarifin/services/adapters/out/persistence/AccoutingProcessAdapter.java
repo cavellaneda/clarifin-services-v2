@@ -63,6 +63,7 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
             .status(status)
             .idCompany(uploadProperties.getIdCompany())
             .idBusinessUnit(new Gson().toJson(idBusinessUnits))
+            .userCreator(uploadProperties.getUserCreator())
             .build()
     );
   }
@@ -158,6 +159,15 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
     accountingProcessRepository.save(process);
   }
 
+  @Transactional
+  public void updateToError(String uuid, List<String> error, String user) {
+    final AccountingProcessEntity process = accountingProcessRepository.getById(uuid);
+    process.setStatus("ERROR");
+    process.setErrorDescription(error.toString());
+    process.setUserUpdate(user);
+    accountingProcessRepository.save(process);
+  }
+
   @Override
   @Transactional
   public void updateToSuccess(String uuid) {
@@ -216,22 +226,21 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
   }
 
   @Override
-  public void deleteProcess(String idProcess, Long idClient, String idBusiness) {
+  public void deleteProcess(String idProcess, Long idClient, String idBusiness, String user) {
       System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
 
       deleteCategoriasContables(idProcess);
 
       System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
 
-
-      deleteProcessBd(idProcess, idClient, idBusiness);
+      deleteProcessBd(idProcess, idClient, idBusiness, user);
 
       System.out.println(LocalDateTime.now() + " - Deleting process: " + idProcess);
   }
 
   @Transactional
-  protected void deleteProcessBd(String idProcess, Long idClient, String idBusiness) {
-    updateToError(idProcess, List.of("Process deleted"));
+  protected void deleteProcessBd(String idProcess, Long idClient, String idBusiness, String user) {
+    updateToError(idProcess, List.of("Process deleted"), user);
   }
 
   @Transactional

@@ -472,6 +472,8 @@ public class AccountingService implements AccountingUseCase {
             .idFormat(accountingProcessEntity.getIdFormat())
             .dateProcess(accountingProcessEntity.getDateProcess().toString())
             .errors(accountingProcessEntity.getErrorDescription())
+            .userCreator(accountingProcessEntity.getUserCreator())
+            .userUpdater(accountingProcessEntity.getUserUpdate())
             .build()
     ).collect(Collectors.toList());
   }
@@ -480,8 +482,6 @@ public class AccountingService implements AccountingUseCase {
       Map<String, BusinessUnitEntity> businessUnitMap) {
 
     List<String> businessUnitIds = new Gson().fromJson(idBusinessUnit, List.class);
-
-
 
     return businessUnitIds.stream().map(businessUnitMap::get).map(businessUnitEntity -> BusinessUnit.builder()
         .id(businessUnitEntity.getId())
@@ -509,7 +509,10 @@ public class AccountingService implements AccountingUseCase {
               cuentaContableDimensions.getIdBusinessUnit())
               : "";
 
-          String businessExternalHostId = finalBusinessUnitList.stream().filter(businessUnitEntity -> businessUnitEntity.getId().equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get().getExternalHostId();
+          BusinessUnitEntity businessUnitEntity = finalBusinessUnitList.stream().filter(businessUnitEntity1 -> businessUnitEntity1.getId().equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get();
+
+          String businessExternalHostId = businessUnitEntity.getExternalHostId();
+          String businessUnitName = businessUnitEntity.getName();
 
           bw.write(String.join(",",
               category,
@@ -522,7 +525,8 @@ public class AccountingService implements AccountingUseCase {
               String.valueOf(cuentaContableDimensions.getFinalBalance()),
               toWriteCsv.getAccountingProcessEntity().getDateProcess().toString(),
               String.valueOf(cuentaContableDimensions.getMetadata()),
-              businessExternalHostId
+              businessExternalHostId,
+              businessUnitName
           ));
           bw.newLine();
         }
@@ -565,7 +569,8 @@ public class AccountingService implements AccountingUseCase {
           bw.write(cuentaContableDimensions.getCredits() + ",");
           bw.write(cuentaContableDimensions.getFinalBalance()+ ",");
           bw.write( toWriteCsv.getAccountingProcessEntity().getDateProcess()+",");
-          bw.write( cuentaContableDimensions.getMetadata()+"");
+          bw.write( cuentaContableDimensions.getMetadata()+",");
+          bw.write(cuentaContableDimensions.getIdBusinessUnit());
           bw.newLine();
         }
 

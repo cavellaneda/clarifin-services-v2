@@ -95,7 +95,7 @@ public class PucService implements PucUseCase {
     try {
       processIds.forEach(p -> {
         System.out.println("entro: " + p);
-        accountingProcessPort.deleteProcess(p, deleteCommand.getIdClient(), deleteCommand.getIdBusiness());
+        accountingProcessPort.deleteProcess(p, deleteCommand.getIdClient(), deleteCommand.getIdBusiness(), deleteCommand.getUserDelete());
         System.out.println("salio: " + p);
       });
     }

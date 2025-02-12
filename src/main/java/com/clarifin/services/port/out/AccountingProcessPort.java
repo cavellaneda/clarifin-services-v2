@@ -33,7 +33,7 @@ public interface AccountingProcessPort {
 
   List<String> getBalanceComparison(String idProcessPrevious, String idProcessCurrent);
 
-  void deleteProcess(String idProcess, Long idClient, String idBusiness);
+  void deleteProcess(String idProcess, Long idClient, String idBusiness, String user);
 
 
   List<CuentaContableCategoriesEntity> getCuentaContableCategories(String idCategoryTemplate,

@@ -24,4 +24,6 @@ public class AccountingProcessResponse {
   private String dateProcess;
   private List<BusinessUnit> businessUnits;
   private String errors;
+  private String userCreator;
+  private String userUpdater;
 }

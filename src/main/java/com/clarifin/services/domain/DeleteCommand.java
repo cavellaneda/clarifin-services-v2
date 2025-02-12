@@ -10,5 +10,6 @@ public class DeleteCommand {
   private Long idClient;
   private Date dateImport;
   private String idBusiness;
+  private String userDelete;
 
 }
