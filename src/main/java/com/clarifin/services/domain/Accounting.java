@@ -19,6 +19,8 @@ public class Accounting {
   private String metadata;
   private String businessUnit;
   private String businessUnitExternalHostId;
+  private String businessUnitName;
+
 
 
   private Map<String, Double> balances ;

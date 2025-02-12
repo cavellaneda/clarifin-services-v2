@@ -224,12 +224,15 @@ public class AccountingService implements AccountingUseCase {
 
       String code = String.valueOf(entity.getCode());
 
+      BusinessUnitEntity businessUnitFinal = businessUnitList.stream().filter(businessUnitEntity -> businessUnitEntity.getId().equals(entity.getIdBusinessUnit())).findFirst().get();
+
       final Accounting accounting = accountingMap.getOrDefault(code + "-" + entity.getIdBusinessUnit(), new Accounting());
       accounting.setCode(code);
       accounting.setDescription(entity.getDescription());
       accounting.setTransactional(entity.getTransactional());
       accounting.setBusinessUnit(entity.getIdBusinessUnit());
-      accounting.setBusinessUnitExternalHostId(businessUnitList.stream().filter(businessUnitEntity -> businessUnitEntity.getId().equals(entity.getIdBusinessUnit())).findFirst().get().getExternalHostId());
+      accounting.setBusinessUnitExternalHostId(businessUnitFinal.getExternalHostId());
+      accounting.setBusinessUnitName(businessUnitFinal.getName());
       accounting.setMetadata(entity.getMetadata());
 
       if ("S".equals(entity.getTransactional())) {
