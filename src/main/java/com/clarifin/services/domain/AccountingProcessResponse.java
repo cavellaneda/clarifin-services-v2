@@ -26,4 +26,5 @@ public class AccountingProcessResponse {
   private String errors;
   private String userCreator;
   private String userUpdater;
+  private String ignorePreviousBalance;
 }

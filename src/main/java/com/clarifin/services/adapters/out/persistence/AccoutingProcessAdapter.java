@@ -64,6 +64,7 @@ public class AccoutingProcessAdapter implements AccountingProcessPort {
             .idCompany(uploadProperties.getIdCompany())
             .idBusinessUnit(new Gson().toJson(idBusinessUnits))
             .userCreator(uploadProperties.getUserCreator())
+            .ignorePreviousBalance(uploadProperties.getIgnorePreviousBalance().toString())
             .build()
     );
   }

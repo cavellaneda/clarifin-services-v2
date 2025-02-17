@@ -49,6 +49,7 @@ public class AccountingProcessEntity {
 
   private String userCreator;
   private String userUpdate;
+  private String ignorePreviousBalance;
 
 
 }

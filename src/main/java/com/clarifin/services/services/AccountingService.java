@@ -477,6 +477,7 @@ public class AccountingService implements AccountingUseCase {
             .errors(accountingProcessEntity.getErrorDescription())
             .userCreator(accountingProcessEntity.getUserCreator())
             .userUpdater(accountingProcessEntity.getUserUpdate())
+            .ignorePreviousBalance(accountingProcessEntity.getIgnorePreviousBalance())
             .build()
     ).collect(Collectors.toList());
   }
