@@ -116,7 +116,10 @@ public class KeysService implements KeysUseCase {
       keyEntity.setIdCompany(idCompany);
       keyEntity.setIdBusinessUnit(idBusinessUnit);
 
-      if(!levelsMap.containsKey(level.getName().toLowerCase().replace(" ", "").concat(level.getIdBusinessUnit()))){
+      String key = level.getName().toLowerCase().replace(" ", "");
+      key = key.concat(idBusinessUnit);
+
+      if(!levelsMap.containsKey(key)){
         entitiesToSave.add(keyEntity);
       }
       else{
