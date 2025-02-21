@@ -13,6 +13,7 @@ import com.clarifin.services.port.out.BusinessUnitPort;
 import com.clarifin.services.port.out.CompanyPort;
 import com.clarifin.services.services.util.UtilUuid;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +73,10 @@ public class KeysService implements KeysUseCase {
           key.setExternalHostId(businessUnitMap.get(key.getIdBusinessUnit()).getExternalHostId());
           return key;
         }
-    ).collect(Collectors.toList());
+    ).sorted(Comparator
+            .comparing(Key::getExternalHostId)  // Ordena primero por ExternalHostId
+            .thenComparing(Key::getName, String.CASE_INSENSITIVE_ORDER)) // Luego por Name (ignorando mayúsculas)
+    .collect(Collectors.toList());
   }
 
   @Override
