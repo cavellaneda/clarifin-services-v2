@@ -33,10 +33,18 @@ public class KeysController {
   }
 
   @PostMapping("/client/{clientId}/company/{idCompany}/business_unit/{idBusinessUnit}")
-  public ResponseEntity<Void> createCategoriesByCompany(@PathVariable final Long clientId,
+  public ResponseEntity<List<String>> createCategoriesByCompany(@PathVariable final Long clientId,
       @PathVariable final String idCompany, @PathVariable final String idBusinessUnit, @RequestBody List<Key> levelsToClient) {
-    keysUseCase.createKeysByClients(clientId, idCompany, levelsToClient, idBusinessUnit);
-    return ResponseEntity.noContent().build();
+    List<String> result = keysUseCase.createKeysByClients(clientId, idCompany, levelsToClient, idBusinessUnit);
+
+    if(result.isEmpty()) {
+      return ResponseEntity.noContent().build();
+    }
+    else{
+      return ResponseEntity.badRequest().body(result);
+    }
+
+
   }
 
   @DeleteMapping("/client/{clientId}/company/{idCompany}/business_unit/{idBusinessUnit}")

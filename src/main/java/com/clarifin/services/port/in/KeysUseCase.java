@@ -9,7 +9,7 @@ public interface KeysUseCase {
 
   List<Key> getKeysByClients(Long clientId, String businessId);
 
-  void createKeysByClients(Long idClient, String businessId, List<Key> levelsToClient,
+  List<String> createKeysByClients(Long idClient, String businessId, List<Key> levelsToClient,
       String idBusinessUnit);
 
   void deleteKeyByClients(Long idClient, String idBusiness, Key key, String idBusinessUnit);

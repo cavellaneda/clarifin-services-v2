@@ -13,12 +13,14 @@ import com.clarifin.services.port.out.BusinessUnitPort;
 import com.clarifin.services.port.out.CompanyPort;
 import com.clarifin.services.services.util.UtilUuid;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 @Service
 public class KeysService implements KeysUseCase {
@@ -74,8 +76,11 @@ public class KeysService implements KeysUseCase {
   }
 
   @Override
-  public void createKeysByClients(Long idClient, String idCompany, List<Key> levelsToClient,
+  public List<String>  createKeysByClients(Long idClient, String idCompany, List<Key> levelsToClient,
       String idBusinessUnit) {
+
+    final List<String> result = new ArrayList<>();
+
     final Optional<CompanyEntity> company = companyPort.findByClientAndIdCompany(idClient,
         idCompany);
 
@@ -94,6 +99,15 @@ public class KeysService implements KeysUseCase {
       }
     }
 
+    List<KeyEntity> levels = keyRepository.findKeyEntitiesByIdCompany(idCompany);
+
+    Map<String, KeyEntity> levelsMap = new HashMap<>();
+
+    levels.forEach(levelEntity -> {
+      final String name = levelEntity.getName().toLowerCase().replace(" ", "").concat(levelEntity.getIdBusinessUnit());
+      levelsMap.put(name, levelEntity);
+    });
+
     final List<KeyEntity> entitiesToSave = new ArrayList<>();
 
     levelsToClient.forEach(level -> {
@@ -101,10 +115,23 @@ public class KeysService implements KeysUseCase {
       keyEntity.setId(UtilUuid.generateUuid());
       keyEntity.setIdCompany(idCompany);
       keyEntity.setIdBusinessUnit(idBusinessUnit);
+
+      if(!levelsMap.containsKey(level.getName().toLowerCase().replace(" ", "").concat(level.getIdBusinessUnit()))){
+        entitiesToSave.add(keyEntity);
+      }
+      else{
+        result.add("Error: Level already exists: " + level.getName());
+      }
+
       entitiesToSave.add(keyEntity);
     });
 
-    keyRepository.saveAll(entitiesToSave);
+    if (CollectionUtils.isEmpty(result) && !CollectionUtils.isEmpty(entitiesToSave)) {
+      keyRepository.saveAll(entitiesToSave);
+    }
+
+    return result;
+
   }
 
   @Override
