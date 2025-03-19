@@ -1,5 +1,6 @@
 package com.clarifin.services.adapters.in.rest;
 
+import com.clarifin.services.domain.AccountingDimension;
 import com.clarifin.services.domain.AccountingProcessResponse;
 import com.clarifin.services.domain.AccountingResponse;
 import com.clarifin.services.port.in.AccountingUseCase;
@@ -42,5 +43,14 @@ public class AccountingController {
       @RequestParam(value = "id_company", required = false) List<String> idCompany
   ) {
     return ResponseEntity.ok().body(accountingUseCase.getAccountingProcess(idClient, idCompany));
+  }
+
+  @GetMapping("/client/{idClient}/company/{idCompany}/accounting/dimension")
+  public ResponseEntity<List<AccountingDimension>> getAccountingDimensionByDates(@PathVariable final Long idClient, @PathVariable String idCompany,
+      @RequestParam("start_date") String startDate, @RequestParam("end_date") String endDate, @RequestParam(value = "business_unit", required = false) List<String> businessUnit, @RequestParam(value = "puc_code", required = false) List<String> pucCodes
+  ) {
+
+    return ResponseEntity.ok().body(accountingUseCase.getAccountingDimensionByDates(idClient, idCompany,
+        UtilDate.convertDate(startDate), UtilDate.convertDate(endDate), businessUnit, pucCodes));
   }
 }

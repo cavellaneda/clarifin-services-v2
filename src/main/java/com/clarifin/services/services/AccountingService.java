@@ -6,17 +6,17 @@ import com.clarifin.services.adapters.out.persistence.CuentaContableCategoriesRe
 import com.clarifin.services.adapters.out.persistence.TemplateMasterCategoriesRepository;
 import com.clarifin.services.adapters.out.persistence.entities.AccountingProcessEntity;
 import com.clarifin.services.adapters.out.persistence.entities.BusinessUnitEntity;
-import com.clarifin.services.adapters.out.persistence.entities.ClientEntity;
-import com.clarifin.services.adapters.out.persistence.entities.CompanyEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CategoriesKeyEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CategoriesOn6Entity;
+import com.clarifin.services.adapters.out.persistence.entities.ClientEntity;
+import com.clarifin.services.adapters.out.persistence.entities.CompanyEntity;
 import com.clarifin.services.adapters.out.persistence.entities.CuentaContableDimensionsEntity;
 import com.clarifin.services.adapters.out.persistence.entities.TemplateMasterCategoriesKeysEntity;
 import com.clarifin.services.domain.Accounting;
+import com.clarifin.services.domain.AccountingDimension;
 import com.clarifin.services.domain.AccountingProcessResponse;
 import com.clarifin.services.domain.AccountingResponse;
 import com.clarifin.services.domain.BusinessUnit;
-import com.clarifin.services.domain.Client;
 import com.clarifin.services.domain.CuentaContableDimensions;
 import com.clarifin.services.domain.ToWriteCsv;
 import com.clarifin.services.domain.mappers.CuentaContableDimensionsMapper;
@@ -39,7 +39,6 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -62,42 +61,29 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 @Service
 public class AccountingService implements AccountingUseCase {
 
-  @PersistenceContext
-  private EntityManager entityManager;
-
   final CuentaContableDimensionsMapper mapper = CuentaContableDimensionsMapper.INSTANCE;
-
-  @Autowired
-  private PucPort pucPort;
-
-  @Autowired
-  private AccountingProcessPort accountingProcessPort;
-
-  @Autowired
-  private CompanyPort companyPort;
-
-  @Autowired
-  private BusinessUnitPort businessUnitPort;
-
-  @Autowired
-  private ClientPort clientPort;
-
-
-  @Autowired
-  private TemplateMasterCategoriesRepository templateMasterCategoriesRepository;
-
-  @Autowired
-  private CuentaContableCategoriesRepository cuentaContableCategoriesRepository;
-
-  @Autowired
-  private CategoriesKeyRepository categoriesKeyRepository;
-
-  @Autowired
-  private CategoriesOn6Repository categoriesOn6Repository;
-
   private final S3Client s3Client;
   private final S3Presigner s3Presigner;
-
+  @PersistenceContext
+  private EntityManager entityManager;
+  @Autowired
+  private PucPort pucPort;
+  @Autowired
+  private AccountingProcessPort accountingProcessPort;
+  @Autowired
+  private CompanyPort companyPort;
+  @Autowired
+  private BusinessUnitPort businessUnitPort;
+  @Autowired
+  private ClientPort clientPort;
+  @Autowired
+  private TemplateMasterCategoriesRepository templateMasterCategoriesRepository;
+  @Autowired
+  private CuentaContableCategoriesRepository cuentaContableCategoriesRepository;
+  @Autowired
+  private CategoriesKeyRepository categoriesKeyRepository;
+  @Autowired
+  private CategoriesOn6Repository categoriesOn6Repository;
   @Value("${aws.s3.bucket}")
   private String bucketName;
 
@@ -143,53 +129,67 @@ public class AccountingService implements AccountingUseCase {
   public AccountingResponse getAccountingByDates(Long idClient, String idCompany, Date startDate,
       Date endDate, List<String> businessUnit) {
 
-    List<CuentaContableDimensionsEntity> result = pucPort.getCuentaContableDimensions(idClient, idCompany, startDate, endDate);
+    List<CuentaContableDimensionsEntity> result = pucPort.getCuentaContableDimensions(idClient,
+        idCompany, startDate, endDate);
 
-    List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(idClient, idCompany, startDate, endDate);
+    List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(idClient,
+        idCompany, startDate, endDate);
 
-    List<TemplateMasterCategoriesKeysEntity> customByBusiness = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByIdCompany(idCompany);
+    List<TemplateMasterCategoriesKeysEntity> customByBusiness = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByIdCompany(
+        idCompany);
 
-    List<BusinessUnitEntity> businessUnitList = businessUnitPort.findAllBusinessUnitByCompanyId(idCompany);
+    List<BusinessUnitEntity> businessUnitList = businessUnitPort.findAllBusinessUnitByCompanyId(
+        idCompany);
 
     if (businessUnit != null && !businessUnit.isEmpty()) {
-      businessUnitList = businessUnitList.stream().filter(businessUnitEntity -> businessUnit.contains(businessUnitEntity.getExternalHostId())).collect(Collectors.toList());
+      businessUnitList = businessUnitList.stream().filter(
+              businessUnitEntity -> businessUnit.contains(businessUnitEntity.getExternalHostId()))
+          .collect(Collectors.toList());
     }
 
     List<BusinessUnitEntity> finalBusinessUnitList = businessUnitList;
 
-    result = result.stream().filter(cuentaContableDimensionsEntity -> finalBusinessUnitList.stream().anyMatch(businessUnitEntity -> businessUnitEntity.getId().equals(cuentaContableDimensionsEntity.getIdBusinessUnit()))).collect(Collectors.toList());
+    result = result.stream().filter(cuentaContableDimensionsEntity -> finalBusinessUnitList.stream()
+            .anyMatch(businessUnitEntity -> businessUnitEntity.getId()
+                .equals(cuentaContableDimensionsEntity.getIdBusinessUnit())))
+        .collect(Collectors.toList());
 
     Optional<CompanyEntity> company = companyPort.findByClientAndIdCompany(idClient, idCompany);
 
-    List<TemplateMasterCategoriesKeysEntity> templateBase = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByTypeIndustryInAndIdCompanyIsNull(List.of("ALL", company.get().getIndustry()));
+    List<TemplateMasterCategoriesKeysEntity> templateBase = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByTypeIndustryInAndIdCompanyIsNull(
+        List.of("ALL", company.get().getIndustry()));
 
     final List<String> templateList = new ArrayList<>();
 
     final List<String> templateIds = new ArrayList<>();
     customByBusiness.forEach(templateMasterCategoriesKeysEntity -> {
-      templateIds.add(templateMasterCategoriesKeysEntity.getId() + "-"+ templateMasterCategoriesKeysEntity.getIdBusinessUnit());
+      templateIds.add(templateMasterCategoriesKeysEntity.getId() + "-"
+          + templateMasterCategoriesKeysEntity.getIdBusinessUnit());
     });
 
-    templateList.addAll(customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId).collect(Collectors.toList()));
+    templateList.addAll(customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+        .collect(Collectors.toList()));
 
     final List<String> templateBaseIds = new ArrayList<>();
-    if (templateBase.size()>1){
+    if (templateBase.size() > 1) {
       templateBase.forEach(templateMasterCategoriesEntity -> {
-        if(!templateMasterCategoriesEntity.getTypeIndustry().equals("ALL")){
+        if (!templateMasterCategoriesEntity.getTypeIndustry().equals("ALL")) {
           customByBusiness.add(templateMasterCategoriesEntity);
-          templateList.add(templateMasterCategoriesEntity.getId()) ;
-          templateBaseIds.add(templateMasterCategoriesEntity.getId() + "-"+ templateMasterCategoriesEntity.getIdBusinessUnit());
+          templateList.add(templateMasterCategoriesEntity.getId());
+          templateBaseIds.add(templateMasterCategoriesEntity.getId() + "-"
+              + templateMasterCategoriesEntity.getIdBusinessUnit());
         }
-      } );
-    }
-    else{
-      templateList.add(templateBase.get(0).getId()) ;
+      });
+    } else {
+      templateList.add(templateBase.get(0).getId());
       customByBusiness.addAll(templateBase);
-      templateBaseIds.add(templateBase.get(0).getId() + "-"+ templateBase.get(0).getIdBusinessUnit());
+      templateBaseIds.add(
+          templateBase.get(0).getId() + "-" + templateBase.get(0).getIdBusinessUnit());
     }
 
     List<CategoriesKeyEntity> categoriesLevelList = categoriesKeyRepository.findCategoriesKeyEntitiesByIdTemplateMasterCategoriesIn(
-        customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId).collect(Collectors.toList()));
+        customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+            .collect(Collectors.toList()));
 
     List<CategoriesOn6Entity> categoriesOn6EntitiesTotals = new ArrayList<>();
 
@@ -199,18 +199,19 @@ public class AccountingService implements AccountingUseCase {
       categoriesOn6EntitiesTotals.addAll(categoriesOn6Entities);
     });
 
-    Map<String, String > categoriesLevel = categoriesLevelList.stream().collect(Collectors.toMap(
-        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-" + item.getIdBusinessUnit(),
+    Map<String, String> categoriesLevel = categoriesLevelList.stream().collect(Collectors.toMap(
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
         CategoriesKeyEntity::getName,
         (existingValue, newValue) -> existingValue
-        ));
+    ));
 
     categoriesLevel.putAll(categoriesOn6EntitiesTotals.stream().collect(Collectors.toMap(
-        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-" + item.getIdBusinessUnit(),
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
         CategoriesOn6Entity::getName,
         (existingValue, newValue) -> existingValue
-        )) ) ;
-
+    )));
 
     List<Accounting> accountingList = new ArrayList<>();
     Map<String, Accounting> accountingMap = new HashMap<>();
@@ -224,9 +225,12 @@ public class AccountingService implements AccountingUseCase {
 
       String code = String.valueOf(entity.getCode());
 
-      BusinessUnitEntity businessUnitFinal = businessUnitList.stream().filter(businessUnitEntity -> businessUnitEntity.getId().equals(entity.getIdBusinessUnit())).findFirst().get();
+      BusinessUnitEntity businessUnitFinal = businessUnitList.stream().filter(
+              businessUnitEntity -> businessUnitEntity.getId().equals(entity.getIdBusinessUnit()))
+          .findFirst().get();
 
-      final Accounting accounting = accountingMap.getOrDefault(code + "-" + entity.getIdBusinessUnit(), new Accounting());
+      final Accounting accounting = accountingMap.getOrDefault(
+          code + "-" + entity.getIdBusinessUnit(), new Accounting());
       accounting.setCode(code);
       accounting.setDescription(entity.getDescription());
       accounting.setTransactional(entity.getTransactional());
@@ -237,25 +241,46 @@ public class AccountingService implements AccountingUseCase {
 
       if ("S".equals(entity.getTransactional())) {
         accounting.setCategory(
-            validateCategory(code, categoriesLevel, templateBaseIds, templateList, entity.getIdBusinessUnit()));
+            validateCategory(code, categoriesLevel, templateBaseIds, templateList,
+                entity.getIdBusinessUnit()));
       }
 
       if (accounting.getBalances() == null) {
         accounting.setBalances(new HashMap<>());
 
         String dateKey = new SimpleDateFormat("yyyy-MM-dd").format(entity.getDateProcess());
-        accounting.getBalances().put(dateKey, entity.getFinalBalance());
-      }
-      else {
+        if (code.startsWith("4") || code.startsWith("5") || code.startsWith("6") || code.startsWith(
+            "7") || code.startsWith("8") || code.startsWith("9")) {
+          Double value = entity.getFinalBalance() - entity.getInitialBalance();
+          accounting.getBalances().put(dateKey, value);
+        } else {
+          accounting.getBalances().put(dateKey, entity.getFinalBalance());
+        }
+      } else {
 
         String dateKey = new SimpleDateFormat("yyyy-MM-dd").format(entity.getDateProcess());
 
-        if(accounting.getBalances().containsKey(dateKey)){
-          final Double multipleValues = accounting.getBalances().get(dateKey) + entity.getFinalBalance();
+        if (accounting.getBalances().containsKey(dateKey)) {
+
+          Double value = 0.0;
+          if (code.startsWith("4") || code.startsWith("5") || code.startsWith("6")
+              || code.startsWith("7") || code.startsWith("8") || code.startsWith("9")) {
+            value = entity.getFinalBalance() - entity.getInitialBalance();
+          } else {
+            value = entity.getFinalBalance();
+          }
+
+          final Double multipleValues = accounting.getBalances().get(dateKey) + value;
           accounting.getBalances().put(dateKey, multipleValues);
-        }
-        else{
-          accounting.getBalances().put(dateKey, entity.getFinalBalance());
+        } else {
+          Double value = 0.0;
+          if (code.startsWith("4") || code.startsWith("5") || code.startsWith("6")
+              || code.startsWith("7") || code.startsWith("8") || code.startsWith("9")) {
+            value = entity.getFinalBalance() - entity.getInitialBalance();
+          } else {
+            value = entity.getFinalBalance();
+          }
+          accounting.getBalances().put(dateKey, value);
         }
 
       }
@@ -265,26 +290,32 @@ public class AccountingService implements AccountingUseCase {
 
     accountingList.addAll(accountingMap.values());
 
-    accountingList.sort(Comparator.comparing(Accounting::getBusinessUnit).thenComparing(Accounting::getCode));
+    accountingList.sort(
+        Comparator.comparing(Accounting::getBusinessUnit).thenComparing(Accounting::getCode));
 
-    System.out.println("accountingList.size() = " + accountingList.size())  ;
+    System.out.println("accountingList.size() = " + accountingList.size());
 
     accountingList.forEach(accounting -> {
-      System.out.println(accounting.getCode() + "|" + accounting.getTransactional() + "|" + accounting.getDescription() + "|" + accounting.getCategory() + "|" +accounting.getBusinessUnit() + "|" + accounting.getBusinessUnitExternalHostId() + "|" + accounting.getBalances().size());
+      System.out.println(accounting.getCode() + "|" + accounting.getTransactional() + "|"
+          + accounting.getDescription() + "|" + accounting.getCategory() + "|"
+          + accounting.getBusinessUnit() + "|" + accounting.getBusinessUnitExternalHostId() + "|"
+          + accounting.getBalances().size());
     });
 
     return AccountingResponse.builder()
         .accounting(accountingList)
         .columnsName(processList.stream().map(accountingProcessEntity -> {
-          String dateKey = new SimpleDateFormat("yyyy-MM-dd").format(accountingProcessEntity.getDateProcess());
+          String dateKey = new SimpleDateFormat("yyyy-MM-dd").format(
+              accountingProcessEntity.getDateProcess());
           return dateKey;
         }).collect(Collectors.toList()))
         .numberOfRecords(accountingList.size())
-        .numberOfColumns(processList.size()+3)
+        .numberOfColumns(processList.size() + 3)
         .build();
   }
 
-  private String validateCategory(String code, Map<String, String> categoriesLevel, List<String> templateBaseIds,
+  private String validateCategory(String code, Map<String, String> categoriesLevel,
+      List<String> templateBaseIds,
       List<String> templateCustomIds, String idBusinessUnit) {
 
     Map<String, String> uncategory = Map.of(
@@ -299,11 +330,13 @@ public class AccountingService implements AccountingUseCase {
         "9", "Other unclassified income/expense"
     );
 
-    String category = null ;
+    String category = null;
 
     for (String templateId : templateCustomIds) {
       category = categoriesLevel.get(code + "-" + templateId + "-" + idBusinessUnit);
-      if(category != null) break;
+      if (category != null) {
+        break;
+      }
     }
 
     if (category == null) {
@@ -315,18 +348,20 @@ public class AccountingService implements AccountingUseCase {
       }
       else {
       */
-        if (category == null) {
-          for (String templateId : templateCustomIds) {
-            category = categoriesLevel.get(code.substring(0, 6) + "-" + templateId);
-            if(category != null) break;
-          }
-          if (category == null) {
-            category = categoriesLevel.get(code.substring(0, 6) + "-" + templateBaseIds.get(0));
-            if (category == null) {
-              category = uncategory.get(code.substring(0, 1));
-            }
+      if (category == null) {
+        for (String templateId : templateCustomIds) {
+          category = categoriesLevel.get(code.substring(0, 6) + "-" + templateId);
+          if (category != null) {
+            break;
           }
         }
+        if (category == null) {
+          category = categoriesLevel.get(code.substring(0, 6) + "-" + templateBaseIds.get(0));
+          if (category == null) {
+            category = uncategory.get(code.substring(0, 1));
+          }
+        }
+      }
       //}
     }
 
@@ -337,25 +372,34 @@ public class AccountingService implements AccountingUseCase {
   public AccountingResponse getAccountingByDatesToCsv(Long idClient, String idCompany,
       Date startDate, Date endDate, List<String> businessUnit) {
 
-    List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(idClient, idCompany, startDate, endDate);
+    List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(idClient,
+        idCompany, startDate, endDate);
     List<ToWriteCsv> toWriteCsvList = new ArrayList<>();
 
-    List<BusinessUnitEntity> businessUnitList = businessUnitPort.findAllBusinessUnitByCompanyId(idCompany);
+    List<BusinessUnitEntity> businessUnitList = businessUnitPort.findAllBusinessUnitByCompanyId(
+        idCompany);
 
     if (businessUnit != null && !businessUnit.isEmpty()) {
-      businessUnitList = businessUnitList.stream().filter(businessUnitEntity -> businessUnit.contains(businessUnitEntity.getExternalHostId())).collect(Collectors.toList());
+      businessUnitList = businessUnitList.stream().filter(
+              businessUnitEntity -> businessUnit.contains(businessUnitEntity.getExternalHostId()))
+          .collect(Collectors.toList());
     }
 
     List<BusinessUnitEntity> finalBusinessUnitList = businessUnitList;
 
-    for(AccountingProcessEntity process: processList)
-    {
-      List<CuentaContableDimensionsEntity> result = pucPort.getCuentaContableDimensions(idClient, idCompany, process.getId());
+    for (AccountingProcessEntity process : processList) {
+      List<CuentaContableDimensionsEntity> result = pucPort.getCuentaContableDimensions(idClient,
+          idCompany, process.getId());
 
-      result = result.stream().filter(cuentaContableDimensionsEntity -> finalBusinessUnitList.stream().anyMatch(businessUnitEntity -> businessUnitEntity.getId().equals(cuentaContableDimensionsEntity.getIdBusinessUnit()))).collect(Collectors.toList());
+      result = result.stream().filter(
+              cuentaContableDimensionsEntity -> finalBusinessUnitList.stream().anyMatch(
+                  businessUnitEntity -> businessUnitEntity.getId()
+                      .equals(cuentaContableDimensionsEntity.getIdBusinessUnit())))
+          .collect(Collectors.toList());
 
-      final List<CuentaContableDimensions> resultOrder = result.stream().map(mapper::entityToDomain).collect(
-          Collectors.toList());
+      final List<CuentaContableDimensions> resultOrder = result.stream().map(mapper::entityToDomain)
+          .collect(
+              Collectors.toList());
       resultOrder.sort(Comparator.comparing(CuentaContableDimensions::getCode));
 
       toWriteCsvList.add(ToWriteCsv.builder()
@@ -364,39 +408,45 @@ public class AccountingService implements AccountingUseCase {
           .build());
     }
 
-    List<TemplateMasterCategoriesKeysEntity> customByBusiness = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByIdCompany(idCompany);
+    List<TemplateMasterCategoriesKeysEntity> customByBusiness = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByIdCompany(
+        idCompany);
 
     Optional<CompanyEntity> company = companyPort.findByClientAndIdCompany(idClient, idCompany);
 
-    List<TemplateMasterCategoriesKeysEntity> templateBase = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByTypeIndustryInAndIdCompanyIsNull(List.of("ALL", company.get().getIndustry()));
+    List<TemplateMasterCategoriesKeysEntity> templateBase = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByTypeIndustryInAndIdCompanyIsNull(
+        List.of("ALL", company.get().getIndustry()));
 
     final List<String> templateList = new ArrayList<>();
 
     final List<String> templateIds = new ArrayList<>();
     customByBusiness.forEach(templateMasterCategoriesKeysEntity -> {
-      templateIds.add(templateMasterCategoriesKeysEntity.getId() + "-"+ templateMasterCategoriesKeysEntity.getIdBusinessUnit());
+      templateIds.add(templateMasterCategoriesKeysEntity.getId() + "-"
+          + templateMasterCategoriesKeysEntity.getIdBusinessUnit());
     });
 
-    templateList.addAll(customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId).collect(Collectors.toList()));
+    templateList.addAll(customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+        .collect(Collectors.toList()));
 
     final List<String> templateBaseIds = new ArrayList<>();
-    if (templateBase.size()>1){
+    if (templateBase.size() > 1) {
       templateBase.forEach(templateMasterCategoriesEntity -> {
-        if(!templateMasterCategoriesEntity.getTypeIndustry().equals("ALL")){
+        if (!templateMasterCategoriesEntity.getTypeIndustry().equals("ALL")) {
           customByBusiness.add(templateMasterCategoriesEntity);
-          templateList.add(templateMasterCategoriesEntity.getId()) ;
-          templateBaseIds.add(templateMasterCategoriesEntity.getId() + "-"+ templateMasterCategoriesEntity.getIdBusinessUnit());
+          templateList.add(templateMasterCategoriesEntity.getId());
+          templateBaseIds.add(templateMasterCategoriesEntity.getId() + "-"
+              + templateMasterCategoriesEntity.getIdBusinessUnit());
         }
-      } );
-    }
-    else{
-      templateList.add(templateBase.get(0).getId()) ;
+      });
+    } else {
+      templateList.add(templateBase.get(0).getId());
       customByBusiness.addAll(templateBase);
-      templateBaseIds.add(templateBase.get(0).getId() + "-"+ templateBase.get(0).getIdBusinessUnit());
+      templateBaseIds.add(
+          templateBase.get(0).getId() + "-" + templateBase.get(0).getIdBusinessUnit());
     }
 
     List<CategoriesKeyEntity> categoriesLevelList = categoriesKeyRepository.findCategoriesKeyEntitiesByIdTemplateMasterCategoriesIn(
-        customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId).collect(Collectors.toList()));
+        customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+            .collect(Collectors.toList()));
 
     List<CategoriesOn6Entity> categoriesOn6EntitiesTotals = new ArrayList<>();
 
@@ -406,22 +456,25 @@ public class AccountingService implements AccountingUseCase {
       categoriesOn6EntitiesTotals.addAll(categoriesOn6Entities);
     });
 
-    Map<String, String > categoriesLevel = categoriesLevelList.stream().collect(Collectors.toMap(
-        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-" + item.getIdBusinessUnit(),
+    Map<String, String> categoriesLevel = categoriesLevelList.stream().collect(Collectors.toMap(
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
         CategoriesKeyEntity::getName,
         (existingValue, newValue) -> existingValue
     ));
 
     categoriesLevel.putAll(categoriesOn6EntitiesTotals.stream().collect(Collectors.toMap(
-        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-" + item.getIdBusinessUnit(),
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
         CategoriesOn6Entity::getName,
         (existingValue, newValue) -> existingValue
-    )) ) ;
+    )));
 
+    final URL presingnedUrl = writeCsv(toWriteCsvList, categoriesLevel, templateBaseIds,
+        templateList, idCompany, finalBusinessUnitList);
 
-    final URL presingnedUrl = writeCsv(toWriteCsvList, categoriesLevel, templateBaseIds, templateList, idCompany, finalBusinessUnitList);
-
-    final AccountingResponse accountingResponse = getAccountingByDates(idClient, idCompany, startDate, endDate, List.of());
+    final AccountingResponse accountingResponse = getAccountingByDates(idClient, idCompany,
+        startDate, endDate, List.of());
 
     accountingResponse.setPresignedUrl(presingnedUrl.toString());
     return accountingResponse;
@@ -435,32 +488,28 @@ public class AccountingService implements AccountingUseCase {
 
     final List<AccountingProcessEntity> processList = new ArrayList<>();
 
-    if(idCompany != null && !idCompany.isEmpty())
-    {
+    if (idCompany != null && !idCompany.isEmpty()) {
       idCompany.forEach(company -> {
         processList.addAll(accountingProcessPort.getProcess(idClient, company));
       });
-    }
-    else {
+    } else {
       processList.addAll(accountingProcessPort.getProcess(idClient));
     }
 
-
     final List<BusinessUnitEntity> businessUnits = new ArrayList<>();
 
-    if(idCompany != null && !idCompany.isEmpty())
-    {
+    if (idCompany != null && !idCompany.isEmpty()) {
       idCompany.forEach(company -> {
         businessUnits.addAll(businessUnitPort.findAllBusinessUnitByCompanyId(company));
       });
-    }
-    else {
+    } else {
       companyPort.findAllCompanyByClientId(idClient).forEach(company -> {
         businessUnits.addAll(businessUnitPort.findAllBusinessUnitByCompanyId(company.getId()));
       });
     }
 
-    Map<String, BusinessUnitEntity> businessUnitMap = businessUnits.stream().collect(Collectors.toMap(BusinessUnitEntity::getId, businessUnitEntity -> businessUnitEntity));
+    Map<String, BusinessUnitEntity> businessUnitMap = businessUnits.stream().collect(
+        Collectors.toMap(BusinessUnitEntity::getId, businessUnitEntity -> businessUnitEntity));
 
     return processList.stream().map(
         accountingProcessEntity -> AccountingProcessResponse.builder()
@@ -471,7 +520,8 @@ public class AccountingService implements AccountingUseCase {
             .updatedAt(accountingProcessEntity.getUpdatedAt().toString())
             .status(accountingProcessEntity.getStatus())
             .companyName(client.get().getName())
-            .businessUnits(buildBusinessUnitList(accountingProcessEntity.getIdBusinessUnit(), businessUnitMap))
+            .businessUnits(
+                buildBusinessUnitList(accountingProcessEntity.getIdBusinessUnit(), businessUnitMap))
             .idFormat(accountingProcessEntity.getIdFormat())
             .dateProcess(accountingProcessEntity.getDateProcess().toString())
             .errors(accountingProcessEntity.getErrorDescription())
@@ -482,17 +532,179 @@ public class AccountingService implements AccountingUseCase {
     ).collect(Collectors.toList());
   }
 
+  @Override
+  public List<AccountingDimension> getAccountingDimensionByDates(Long idClient, String idCompany,
+      Date startDate, Date endDate, List<String> businessUnit, List<String> pucCodes) {
+
+    List<AccountingProcessEntity> processList = accountingProcessPort.getProcess(idClient,
+        idCompany, startDate, endDate);
+    List<ToWriteCsv> toWriteCsvList = new ArrayList<>();
+
+    List<BusinessUnitEntity> businessUnitList = businessUnitPort.findAllBusinessUnitByCompanyId(
+        idCompany);
+
+    if (businessUnit != null && !businessUnit.isEmpty()) {
+      businessUnitList = businessUnitList.stream().filter(
+              businessUnitEntity -> businessUnit.contains(businessUnitEntity.getExternalHostId()))
+          .collect(Collectors.toList());
+    }
+
+    List<BusinessUnitEntity> finalBusinessUnitList = businessUnitList;
+
+    for (AccountingProcessEntity process : processList) {
+      List<CuentaContableDimensionsEntity> result = pucPort.getCuentaContableDimensions(idClient,
+          idCompany, process.getId());
+
+      result = result.stream().filter(
+              cuentaContableDimensionsEntity -> finalBusinessUnitList.stream().anyMatch(
+                  businessUnitEntity -> businessUnitEntity.getId()
+                      .equals(cuentaContableDimensionsEntity.getIdBusinessUnit())))
+          .collect(Collectors.toList());
+
+      final List<CuentaContableDimensions> resultOrder = result.stream().map(mapper::entityToDomain)
+          .collect(
+              Collectors.toList());
+      resultOrder.sort(Comparator.comparing(CuentaContableDimensions::getCode));
+
+      toWriteCsvList.add(ToWriteCsv.builder()
+          .accountingProcessEntity(process)
+          .result(resultOrder)
+          .build());
+    }
+
+    List<TemplateMasterCategoriesKeysEntity> customByBusiness = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByIdCompany(
+        idCompany);
+
+    Optional<CompanyEntity> company = companyPort.findByClientAndIdCompany(idClient, idCompany);
+
+    List<TemplateMasterCategoriesKeysEntity> templateBase = templateMasterCategoriesRepository.findTemplateMasterCategoriesEntitiesByTypeIndustryInAndIdCompanyIsNull(
+        List.of("ALL", company.get().getIndustry()));
+
+    final List<String> templateList = new ArrayList<>();
+
+    final List<String> templateIds = new ArrayList<>();
+    customByBusiness.forEach(templateMasterCategoriesKeysEntity -> {
+      templateIds.add(templateMasterCategoriesKeysEntity.getId() + "-"
+          + templateMasterCategoriesKeysEntity.getIdBusinessUnit());
+    });
+
+    templateList.addAll(customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+        .collect(Collectors.toList()));
+
+    final List<String> templateBaseIds = new ArrayList<>();
+    if (templateBase.size() > 1) {
+      templateBase.forEach(templateMasterCategoriesEntity -> {
+        if (!templateMasterCategoriesEntity.getTypeIndustry().equals("ALL")) {
+          customByBusiness.add(templateMasterCategoriesEntity);
+          templateList.add(templateMasterCategoriesEntity.getId());
+          templateBaseIds.add(templateMasterCategoriesEntity.getId() + "-"
+              + templateMasterCategoriesEntity.getIdBusinessUnit());
+        }
+      });
+    } else {
+      templateList.add(templateBase.get(0).getId());
+      customByBusiness.addAll(templateBase);
+      templateBaseIds.add(
+          templateBase.get(0).getId() + "-" + templateBase.get(0).getIdBusinessUnit());
+    }
+
+    List<CategoriesKeyEntity> categoriesLevelList = categoriesKeyRepository.findCategoriesKeyEntitiesByIdTemplateMasterCategoriesIn(
+        customByBusiness.stream().map(TemplateMasterCategoriesKeysEntity::getId)
+            .collect(Collectors.toList()));
+
+    List<CategoriesOn6Entity> categoriesOn6EntitiesTotals = new ArrayList<>();
+
+    customByBusiness.forEach(templateMasterCategoriesKeysEntity -> {
+      List<CategoriesOn6Entity> categoriesOn6Entities = categoriesOn6Repository.findCategoriesOn6EntitiesByIdTemplateMasterCategories(
+          templateMasterCategoriesKeysEntity.getId());
+      categoriesOn6EntitiesTotals.addAll(categoriesOn6Entities);
+    });
+
+    Map<String, String> categoriesLevel = categoriesLevelList.stream().collect(Collectors.toMap(
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
+        CategoriesKeyEntity::getName,
+        (existingValue, newValue) -> existingValue
+    ));
+
+    categoriesLevel.putAll(categoriesOn6EntitiesTotals.stream().collect(Collectors.toMap(
+        item -> item.getCode().toString() + "-" + item.getIdTemplateMasterCategories() + "-"
+            + item.getIdBusinessUnit(),
+        CategoriesOn6Entity::getName,
+        (existingValue, newValue) -> existingValue
+    )));
+
+    return getInformationDimension(toWriteCsvList, categoriesLevel,
+        templateBaseIds, templateList, idCompany, finalBusinessUnitList, pucCodes);
+
+  }
+
+  private List<AccountingDimension> getInformationDimension(List<ToWriteCsv> toWriteCsvList,
+      Map<String, String> categoriesLevel,
+      List<String> templateBaseId, List<String> templateCustomId, String idBusiness,
+      List<BusinessUnitEntity> finalBusinessUnitList,
+      List<String> pucCodes) {
+
+    List<AccountingDimension> accountingDimensionList = new ArrayList<>();
+
+    final List<ToWriteCsv> sorted = toWriteCsvList.stream()
+        .sorted(Comparator.comparing((ToWriteCsv toWriteCsv) ->
+                toWriteCsv.getAccountingProcessEntity().getDateProcess())
+            .reversed()) // Ordenar por fecha de proceso
+        .toList();
+
+    for (ToWriteCsv toWriteCsv : sorted) {
+
+      for (CuentaContableDimensions cuentaContableDimensions : toWriteCsv.getResult()) {
+        if(pucCodes.contains(cuentaContableDimensions.getCode())) {
+          String category = cuentaContableDimensions.getTransactional().equals("S")
+              ? validateCategory(cuentaContableDimensions.getCode(), categoriesLevel,
+              templateBaseId,
+              templateCustomId,
+              cuentaContableDimensions.getIdBusinessUnit())
+              : "";
+
+          BusinessUnitEntity businessUnitEntity = finalBusinessUnitList.stream().filter(
+              businessUnitEntity1 -> businessUnitEntity1.getId()
+                  .equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get();
+
+          String businessExternalHostId = businessUnitEntity.getExternalHostId();
+          String businessUnitName = businessUnitEntity.getName();
+
+          final AccountingDimension accountingDimension = AccountingDimension.builder()
+              .category(category)
+              .transactional(cuentaContableDimensions.getTransactional())
+              .code(cuentaContableDimensions.getCode())
+              .description(cuentaContableDimensions.getDescription())
+              .initialBalance(cuentaContableDimensions.getInitialBalance())
+              .debits(cuentaContableDimensions.getDebits())
+              .credits(cuentaContableDimensions.getCredits())
+              .finalBalance(cuentaContableDimensions.getFinalBalance())
+              .dateProcess(toWriteCsv.getAccountingProcessEntity().getDateProcess().toString())
+              .metadata(cuentaContableDimensions.getMetadata())
+              .businessUnitExternalHostId(businessExternalHostId)
+              .businessUnitName(businessUnitName)
+              .build();
+
+          accountingDimensionList.add(accountingDimension);
+        }
+      }
+    }
+    return accountingDimensionList;
+  }
+
   private List<BusinessUnit> buildBusinessUnitList(String idBusinessUnit,
       Map<String, BusinessUnitEntity> businessUnitMap) {
 
     List<String> businessUnitIds = new Gson().fromJson(idBusinessUnit, List.class);
 
-    return businessUnitIds.stream().map(businessUnitMap::get).map(businessUnitEntity -> BusinessUnit.builder()
-        .id(businessUnitEntity.getId())
-        .name(businessUnitEntity.getName())
-        .description(businessUnitEntity.getDescription())
-        .externalHostId(businessUnitEntity.getExternalHostId())
-        .build()).collect(Collectors.toList());
+    return businessUnitIds.stream().map(businessUnitMap::get)
+        .map(businessUnitEntity -> BusinessUnit.builder()
+            .id(businessUnitEntity.getId())
+            .name(businessUnitEntity.getName())
+            .description(businessUnitEntity.getDescription())
+            .externalHostId(businessUnitEntity.getExternalHostId())
+            .build()).collect(Collectors.toList());
   }
 
   private URL writeCsv(List<ToWriteCsv> toWriteCsvList, Map<String, String> categoriesLevel,
@@ -500,20 +712,24 @@ public class AccountingService implements AccountingUseCase {
       List<BusinessUnitEntity> finalBusinessUnitList) {
     String outputFilePath = "output_cuenta_contable.csv";
 
-    final List<ToWriteCsv> sorted = toWriteCsvList.stream().sorted(Comparator.comparing((ToWriteCsv toWriteCsv) -> toWriteCsv.getAccountingProcessEntity().getDateProcess()).reversed()).toList();
+    final List<ToWriteCsv> sorted = toWriteCsvList.stream().sorted(Comparator.comparing(
+            (ToWriteCsv toWriteCsv) -> toWriteCsv.getAccountingProcessEntity().getDateProcess())
+        .reversed()).toList();
 
     try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath), 819200)) {
 
-      for(ToWriteCsv toWriteCsv: sorted)
-      {
+      for (ToWriteCsv toWriteCsv : sorted) {
 
         for (CuentaContableDimensions cuentaContableDimensions : toWriteCsv.getResult()) {
           String category = cuentaContableDimensions.getTransactional().equals("S")
-              ? validateCategory(cuentaContableDimensions.getCode(), categoriesLevel, templateBaseId, templateCustomId,
+              ? validateCategory(cuentaContableDimensions.getCode(), categoriesLevel,
+              templateBaseId, templateCustomId,
               cuentaContableDimensions.getIdBusinessUnit())
               : "";
 
-          BusinessUnitEntity businessUnitEntity = finalBusinessUnitList.stream().filter(businessUnitEntity1 -> businessUnitEntity1.getId().equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get();
+          BusinessUnitEntity businessUnitEntity = finalBusinessUnitList.stream().filter(
+              businessUnitEntity1 -> businessUnitEntity1.getId()
+                  .equals(cuentaContableDimensions.getIdBusinessUnit())).findFirst().get();
 
           String businessExternalHostId = businessUnitEntity.getExternalHostId();
           String businessUnitName = businessUnitEntity.getName();
@@ -539,9 +755,10 @@ public class AccountingService implements AccountingUseCase {
 
       bw.flush();
 
-      final String path = idBusiness+"/output_cuenta_contable_"+UtilUuid.generateUuid()+".csv";
+      final String path =
+          idBusiness + "/output_cuenta_contable_" + UtilUuid.generateUuid() + ".csv";
 
-      uploadFile(path, Path.of(outputFilePath)) ;
+      uploadFile(path, Path.of(outputFilePath));
 
       URL presignedUrl = generatePresignedUrl(path);
 
@@ -560,8 +777,7 @@ public class AccountingService implements AccountingUseCase {
 
     try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath))) {
 
-      for(ToWriteCsv toWriteCsv: toWriteCsvList)
-      {
+      for (ToWriteCsv toWriteCsv : toWriteCsvList) {
 
         for (CuentaContableDimensions cuentaContableDimensions : toWriteCsv.getResult()) {
           bw.write(cuentaContableDimensions.getCategory() + ",");
@@ -571,9 +787,9 @@ public class AccountingService implements AccountingUseCase {
           bw.write(cuentaContableDimensions.getInitialBalance() + ",");
           bw.write(cuentaContableDimensions.getDebits() + ",");
           bw.write(cuentaContableDimensions.getCredits() + ",");
-          bw.write(cuentaContableDimensions.getFinalBalance()+ ",");
-          bw.write( toWriteCsv.getAccountingProcessEntity().getDateProcess()+",");
-          bw.write( cuentaContableDimensions.getMetadata()+",");
+          bw.write(cuentaContableDimensions.getFinalBalance() + ",");
+          bw.write(toWriteCsv.getAccountingProcessEntity().getDateProcess() + ",");
+          bw.write(cuentaContableDimensions.getMetadata() + ",");
           bw.write(cuentaContableDimensions.getIdBusinessUnit());
           bw.newLine();
         }
